@@ -1,0 +1,75 @@
+services:
+  streamlit:
+    build:
+      context: .
+      dockerfile: Dockerfile.streamlit
+    image: ${IMAGE_NAME:-ghcr.io/vina771/projet11-mlops}:local
+    container_name: projet11_streamlit
+    ports:
+      - "${STREAMLIT_PORT:-8501}:8501"
+    environment:
+      MODEL_FILE_ID: ${MODEL_FILE_ID:-1Uz5OWnaq0YNuB-sPX54HKsYa-Cyx_A-h}
+      TFIDF_FILE_ID: ${TFIDF_FILE_ID:-1enUkbrp1GeLTREt9i0LDBhlfl8wpszJY}
+    volumes:
+      - ./models:/app/models
+    restart: unless-stopped
+    networks:
+      - mlops_network
+
+  fastapi:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: ghcr.io/vina771/projet11-fastapi:local
+    container_name: projet11_fastapi
+    ports:
+      - "${FASTAPI_PORT:-8000}:8000"
+    environment:
+      MODEL_FILE_ID: ${MODEL_FILE_ID:-1Uz5OWnaq0YNuB-sPX54HKsYa-Cyx_A-h}
+      TFIDF_FILE_ID: ${TFIDF_FILE_ID:-1enUkbrp1GeLTREt9i0LDBhlfl8wpszJY}
+    volumes:
+      - ./models:/app/models
+    restart: unless-stopped
+    networks:
+      - mlops_network
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    depends_on:
+      - fastapi
+    restart: unless-stopped
+    networks:
+      - mlops_network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "${GRAFANA_PORT:-3000}:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./monitoring/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./monitoring/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    networks:
+      - mlops_network
+
+volumes:
+  grafana_data:
+
+networks:
+  mlops_network:
+    name: mlops_network
+    driver: bridge

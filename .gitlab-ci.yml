@@ -1,0 +1,89 @@
+﻿stages:
+  - lint
+  - test
+  - build
+  - scan
+  - push
+  - deploy
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  DOCKER_TLS_CERTDIR: ""
+  REGISTRY: "ghcr.io"
+  IMAGE_NAME: "ghcr.io/vina771/projet11-mlops"
+  IMAGE_TAG: "$CI_PIPELINE_ID"
+
+cache:
+  paths:
+    - .cache/pip
+
+lint:
+  stage: lint
+  image: python:3.11-slim
+  script:
+    - python -m pip install --upgrade pip
+    - pip install flake8 black
+    - flake8 src tests app_streamlit.py setup_models.py --max-line-length=120 --ignore=E501,W503 --exclude=venv,__pycache__,.cache
+    - black --check src tests app_streamlit.py setup_models.py
+
+test:
+  stage: test
+  image: python:3.11-slim
+  script:
+    - python -m pip install --upgrade pip
+    - pip install -r requirements.txt pytest pytest-cov httpx
+    - python -m nltk.downloader punkt stopwords wordnet omw-1.4 punkt_tab -d /usr/share/nltk_data || true
+    - pytest tests/ -v --tb=short --junit-xml=test-results.xml --cov=src --cov-report=xml
+  artifacts:
+    when: always
+    reports:
+      junit: test-results.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+    paths:
+      - coverage.xml
+      - test-results.xml
+
+build:
+  stage: build
+  image: docker:27-cli
+  script:
+    - docker build -f Dockerfile.streamlit -t "$IMAGE_NAME:$IMAGE_TAG" -t "$IMAGE_NAME:latest" .
+  rules:
+    - if: '$CI_COMMIT_BRANCH'
+
+scan:
+  stage: scan
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  script:
+    - trivy image --exit-code 0 --severity HIGH,CRITICAL "$IMAGE_NAME:$IMAGE_TAG"
+  rules:
+    - if: '$CI_COMMIT_BRANCH'
+
+push:
+  stage: push
+  image: docker:27-cli
+  script:
+    - echo "$GHCR_TOKEN" | docker login "$REGISTRY" -u "$GHCR_USER" --password-stdin
+    - docker push "$IMAGE_NAME:$IMAGE_TAG"
+    - docker push "$IMAGE_NAME:latest"
+    - docker logout "$REGISTRY"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+deploy:
+  stage: deploy
+  image: cytopia/ansible:latest
+  variables:
+    IMAGE_NAME: "$IMAGE_NAME"
+    IMAGE_TAG: "$IMAGE_TAG"
+    REGISTRY: "$REGISTRY"
+  before_script:
+    - apk add --no-cache docker-cli || true
+  script:
+    - ansible-playbook -i ansible/inventory.ini ansible/playbook.yml
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'

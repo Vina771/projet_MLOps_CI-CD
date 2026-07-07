@@ -1,0 +1,52 @@
+﻿---
+- name: Deploiement Projet 11 Streamlit depuis GHCR
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    registry: "{{ lookup('env', 'REGISTRY') | default('ghcr.io', true) }}"
+    image_name: "{{ lookup('env', 'IMAGE_NAME') | default('ghcr.io/vina771/projet11-mlops', true) }}"
+    image_tag: "{{ lookup('env', 'IMAGE_TAG') | default('latest', true) }}"
+    ghcr_user: "{{ lookup('env', 'GHCR_USER') | default('Vina771', true) }}"
+    ghcr_token: "{{ lookup('env', 'GHCR_TOKEN') }}"
+    container_name: "projet11_streamlit"
+    app_port: "8501"
+
+  tasks:
+    - name: Login GHCR
+      command: docker login {{ registry }} -u {{ ghcr_user }} -p {{ ghcr_token }}
+      no_log: true
+      when: ghcr_token | length > 0
+
+    - name: Pull image depuis GHCR
+      command: docker pull {{ image_name }}:{{ image_tag }}
+
+    - name: Arreter le conteneur existant si present
+      command: docker stop {{ container_name }}
+      ignore_errors: true
+
+    - name: Supprimer le conteneur existant si present
+      command: docker rm {{ container_name }}
+      ignore_errors: true
+
+    - name: Lancer le nouveau conteneur Streamlit
+      command: >
+        docker run -d
+        --name {{ container_name }}
+        -p {{ app_port }}:8501
+        --restart unless-stopped
+        {{ image_name }}:{{ image_tag }}
+
+    - name: Verifier que le conteneur tourne
+      command: docker ps --filter name={{ container_name }} --format "table {{ '{{' }}.Names{{ '}}' }}\t{{ '{{' }}.Status{{ '}}' }}"
+      register: container_status
+
+    - name: Afficher le statut
+      debug:
+        msg: "{{ container_status.stdout }}"
+
+    - name: Logout GHCR
+      command: docker logout {{ registry }}
+      ignore_errors: true
+      when: ghcr_token | length > 0

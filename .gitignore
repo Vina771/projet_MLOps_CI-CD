@@ -1,0 +1,13 @@
+__pycache__/
+.pytest_cache/
+.coverage
+coverage.xml
+test-results.xml
+.cache/
+venv/
+.env
+models/*.pkl
+outputs/*.csv
+reports/*.csv
+reports/*.txt
+*.log

@@ -1,0 +1,17 @@
+pandas
+numpy
+matplotlib
+seaborn
+scikit-learn
+nltk
+vaderSentiment
+mlflow
+joblib
+wordcloud
+imbalanced-learn
+streamlit
+gdown
+fastapi
+uvicorn[standard]
+prometheus-client
+pydantic

@@ -1,0 +1,53 @@
+﻿RESUME DES ACTIONS - GHCR ET PROJET MLOPS
+=========================================
+
+Decision actuelle :
+- Le registry principal est GitHub Container Registry (GHCR).
+- Image finale : ghcr.io/vina771/projet11-mlops:latest
+- Le scan de securite reste assure par Trivy dans le pipeline GitLab CI/CD.
+- Le deploiement reste assure par Ansible.
+
+Ce qui a ete nettoye dans le projet :
+- Pipeline GitLab CI/CD en 6 stages conserve.
+- Variables registry migrees vers REGISTRY, IMAGE_NAME, GHCR_USER, GHCR_TOKEN.
+- Stage build : tag de l'image GHCR avec latest et CI_PIPELINE_ID.
+- Stage scan : Trivy scanne l'image GHCR locale avant push.
+- Stage push : docker login ghcr.io puis push des deux tags.
+- Stage deploy : Ansible pull l'image depuis GHCR.
+
+Variables GitLab CI/CD a configurer :
+- REGISTRY=ghcr.io
+- IMAGE_NAME=ghcr.io/vina771/projet11-mlops
+- GHCR_USER=Vina771
+- GHCR_TOKEN=(GitHub PAT packages, masked/protected)
+
+Token GitHub requis :
+- write:packages
+- read:packages
+
+A verifier ensuite :
+- Runner GitLab enregistre et actif.
+- Variables CI/CD bien creees dans GitLab.
+- Pipeline complet vert.
+- Image visible dans GitHub -> Packages.
+- Application locale accessible sur http://localhost:8501.
+
+MISE A JOUR 2026-07-07
+=====================
+
+Fait et verifie :
+- GitLab CE local et GitLab Runner sont lances.
+- Le runner est enregistre avec executor Docker et acces au socket Docker.
+- Environnement Python local venv installe en Python 3.12.
+- Dependances, ressources NLTK et modeles pkl installes.
+- Tests : 21 passed.
+- Lint : black et flake8 OK.
+- Images Docker locales GHCR construites.
+- Streamlit, FastAPI, Prometheus et Grafana lances.
+- Grafana provisionne automatiquement Prometheus et le dashboard MLOps.
+
+Reste manuel :
+- Creer le PAT GitHub packages.
+- Configurer les variables GitLab CI/CD.
+- Pousser le depot sur GitLab local et GitHub public.
+- Lancer le pipeline complet et verifier le push GHCR.
