@@ -58,3 +58,19 @@ A faire :
 - Creer/verifier le projet GitLab local et pousser le depot.
 - Lancer et valider le pipeline GitLab complet.
 - Verifier le push final de l'image `ghcr.io/vina771/projet11-mlops:latest`.
+
+## 2026-07-08 - Documentation de reprise et justification
+
+Fait :
+- Token GitHub classic signale par l'utilisateur, mais volontairement non ecrit dans le depot.
+- README complete avec un tableau outils / role / justification.
+- `docs/outils_et_choix.md` cree pour le rapport et la soutenance.
+- Justification des deux fichiers Compose ajoutee dans README, architecture et reste a faire.
+- `CONTEXTE_PROJET_MLOPS_v2.txt` passe en version 5 avec l'etat de reprise.
+
+A faire maintenant :
+- Ajouter le token dans GitLab CI/CD sous `GHCR_TOKEN`, masked.
+- Verifier ou creer les variables `REGISTRY`, `IMAGE_NAME`, `GHCR_USER`, `GHCR_TOKEN`.
+- Pousser le depot local vers GitLab CE local si ce n'est pas deja fait.
+- Lancer un pipeline complet et verifier les 6 stages.
+- Verifier que l'image `ghcr.io/vina771/projet11-mlops:latest` apparait dans GitHub Packages.

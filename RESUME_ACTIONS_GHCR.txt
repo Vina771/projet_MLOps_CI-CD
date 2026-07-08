@@ -47,7 +47,24 @@ Fait et verifie :
 - Grafana provisionne automatiquement Prometheus et le dashboard MLOps.
 
 Reste manuel :
-- Creer le PAT GitHub packages.
-- Configurer les variables GitLab CI/CD.
+- Ajouter le PAT GitHub packages fourni par l'utilisateur dans GitLab CI/CD, variable GHCR_TOKEN masked.
+- Configurer/verifier les variables GitLab CI/CD.
 - Pousser le depot sur GitLab local et GitHub public.
 - Lancer le pipeline complet et verifier le push GHCR.
+
+MISE A JOUR 2026-07-08
+=====================
+
+Documentation ajoutee :
+- Tableau outils / role / justification dans README.
+- Nouveau document docs/outils_et_choix.md.
+- Justification des deux fichiers Docker Compose dans README, architecture et reste a faire.
+
+Justification Compose :
+- docker-compose.infra.yml : GitLab CE + GitLab Runner.
+- docker-compose.yml : Streamlit + FastAPI + Prometheus + Grafana.
+- Les deux fichiers evitent de redemarrer l'infrastructure CI/CD pendant les tests applicatifs.
+
+Securite token :
+- Le token GitHub ne doit pas etre ecrit dans le depot.
+- Il doit etre ajoute uniquement comme variable GitLab CI/CD GHCR_TOKEN.

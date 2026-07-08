@@ -27,6 +27,19 @@ Developpeur
 - Prometheus : collecte les metriques FastAPI toutes les 15 secondes.
 - Grafana : visualise trafic, latence, erreurs et repartition des sentiments.
 
+## Separation des fichiers Docker Compose
+
+Le projet conserve deux fichiers Compose pour separer les responsabilites :
+
+| Fichier | Contenu | Cycle de vie |
+|---|---|---|
+| `docker-compose.infra.yml` | GitLab CE + GitLab Runner | Infrastructure CI/CD locale, lourde et persistante |
+| `docker-compose.yml` | Streamlit + FastAPI + Prometheus + Grafana | Application MLOps, reconstruite et verifiee souvent |
+
+Cette separation evite de redemarrer GitLab et le runner lors des tests applicatifs. Elle facilite aussi la demonstration : on lance d'abord la plateforme CI/CD, puis l'application deployee.
+
+Le detail des outils et de leurs choix est documente dans `docs/outils_et_choix.md`.
+
 ## Monitoring Grafana
 
 Grafana est provisionne automatiquement au demarrage :

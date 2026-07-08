@@ -2,14 +2,16 @@
 
 Etat verifie le 2026-07-07 : l'environnement local fonctionne. GitLab CE, GitLab Runner, Streamlit, FastAPI, Prometheus et Grafana sont lances. Les tests et le lint passent.
 
-## 1. Creer le token GitHub pour GHCR
+## 1. Ajouter le token GitHub pour GHCR dans GitLab
 
-1. Aller sur GitHub -> Settings -> Developer settings -> Personal access tokens.
-2. Creer un token classique avec les scopes :
-   - `write:packages`
-   - `read:packages`
-3. Copier le token une seule fois.
-4. Ne jamais le mettre dans le code, `.env.example`, README ou Git.
+Le token GitHub classic est maintenant disponible cote utilisateur. Ne pas le mettre dans un fichier du projet et ne pas le committer.
+
+1. Aller dans GitLab local : `http://localhost:8929`.
+2. Ouvrir le projet.
+3. Aller dans Settings -> CI/CD -> Variables.
+4. Ajouter `GHCR_TOKEN` avec la valeur du token GitHub classic.
+5. Cocher `Masked`.
+6. Cocher `Protected` seulement si le pipeline tourne sur une branche protegee comme `main`.
 
 Test optionnel depuis PowerShell :
 
@@ -126,6 +128,16 @@ curl.exe http://127.0.0.1:3000/api/health
 - GHCR remplace Harbor comme registry professionnel.
 - Trivy conserve le scan securite dans le pipeline.
 - GitLab CI/CD conserve les 6 stages attendus.
-- Docker Compose sert au deploiement local.
+- Deux fichiers Compose sont utilises par separation des responsabilites :
+  - `docker-compose.infra.yml` pour GitLab CE + GitLab Runner.
+  - `docker-compose.yml` pour Streamlit + FastAPI + Prometheus + Grafana.
+- Cette separation evite de redemarrer l'infrastructure CI/CD pendant les tests applicatifs.
 - Ansible automatise le redeploiement du conteneur Streamlit depuis GHCR.
 - Prometheus scrape `/metrics` FastAPI et Grafana affiche le dashboard provisionne.
+
+## 9. Documentation utile
+
+- `README.md` : vue d'ensemble, lancement local, pipeline.
+- `docs/architecture.md` : architecture et separation Compose.
+- `docs/outils_et_choix.md` : tableau complet des outils, roles et justifications.
+- `SUIVI_CODEX_GHCR.md` : historique des actions deja realisees.
