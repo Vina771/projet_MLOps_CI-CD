@@ -61,9 +61,15 @@ scan:
   image:
     name: aquasec/trivy:latest
     entrypoint: [""]
+  variables:
+    TRIVY_CACHE_DIR: "$CI_PROJECT_DIR/.trivycache"
+  cache:
+    key: trivy-db-cache
+    paths:
+      - .trivycache/
   script:
-    - trivy image --exit-code 0 --severity HIGH,CRITICAL "$IMAGE_NAME:$IMAGE_TAG"
-    - trivy image --exit-code 0 --severity HIGH,CRITICAL "$FASTAPI_IMAGE_NAME:$IMAGE_TAG"
+    - trivy image --timeout 15m --exit-code 0 --severity HIGH,CRITICAL "$IMAGE_NAME:$IMAGE_TAG"
+    - trivy image --timeout 15m --exit-code 0 --severity HIGH,CRITICAL "$FASTAPI_IMAGE_NAME:$IMAGE_TAG"
   rules:
     - if: '$CI_COMMIT_BRANCH'
 
