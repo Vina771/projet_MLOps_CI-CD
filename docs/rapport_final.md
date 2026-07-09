@@ -1,43 +1,170 @@
-﻿# Rapport final - Projet MLOps CI/CD
+# Rapport final - Projet MLOps CI/CD
 
-## Resume
+## 1. Resume du projet
 
-Le projet met en place une chaine MLOps complete autour d'un modele NLP de sentiment analysis. Le pipeline reconstruit l'image Docker, lance les tests, scanne les vulnerabilites avec Trivy, publie l'image dans GHCR, puis deploie l'application.
+Ce projet met en place une chaine MLOps CI/CD pour deployer une application de
+Machine Learning de sentiment analysis appliquee a des tweets politiques. Le
+modele vient du Projet 11 NLP et repose sur une vectorisation TF-IDF avec un
+classifieur LinearSVC. L'objectif n'est pas seulement de fournir un modele, mais
+de montrer tout le cycle industriel autour de ce modele : tests, qualite,
+containerisation, securite, publication d'image et deploiement.
 
-## Modele ML
+L'enonce initial demandait GitLab CI/CD, Docker, Docker Compose, FastAPI, Trivy
+et Harbor. Dans cette version, Harbor est remplace par GitHub Container Registry
+(GHCR). Ce choix est documente car il simplifie l'environnement Windows 11 avec
+Docker Desktop et WSL2, tout en gardant le critere registry : les images sont
+construites, scannees, poussees dans un registry professionnel, puis tirees
+pendant le deploiement.
 
-- Tache : analyse de sentiment de tweets politiques.
-- Modele : LinearSVC.
-- Vectorisation : TF-IDF bigrammes.
-- Score de reference : F1 test 0.8902.
-- Classes : negative, neutral, positive.
+## 2. Application ML
 
-## Pipeline
+Le cas d'usage est une analyse de sentiment de tweets politiques avec trois
+classes : negative, neutral et positive. Le modele de reference utilise :
 
-Les 6 stages sont : lint, test, build, scan, push, deploy.
+- un nettoyage NLP des textes ;
+- une vectorisation TF-IDF avec bigrammes ;
+- un modele LinearSVC ;
+- un score de reference F1 test de 0.8902.
 
-## Registry et securite
+Le projet expose deux surfaces applicatives. FastAPI est le service ML central :
+il fournit `/health`, `/predict`, `/predict/batch`, `/metrics` et `/docs`.
+Streamlit sert d'interface de demonstration et appelle FastAPI via la variable
+`API_BASE_URL`. Si FastAPI est indisponible pendant une demo locale, Streamlit
+garde un fallback vers le modele local.
 
-- Registry : `ghcr.io/vina771/projet11-mlops`.
-- Tags : `latest` et identifiant de pipeline GitLab.
-- Scan : Trivy execute dans un stage separe avant le push.
-- Secrets : token GHCR stocke dans les variables GitLab CI/CD.
+## 3. Architecture technique
 
-## Deploiement
+L'architecture finale est organisee autour de GitLab CE local, GitLab Runner,
+Docker, GHCR, Ansible, Streamlit, FastAPI, Prometheus et Grafana.
 
-Le deploiement local expose :
+Le flux cible est le suivant :
+
+```text
+Code ML
+  -> push GitLab CE local
+  -> pipeline GitLab CI/CD
+  -> lint, test, build, scan, push, deploy
+  -> images Docker dans GHCR
+  -> deploiement local
+  -> Streamlit, FastAPI, Prometheus, Grafana
+```
+
+Deux fichiers Docker Compose sont utilises. `docker-compose.infra.yml` lance la
+plateforme CI/CD locale, c'est-a-dire GitLab CE et GitLab Runner. Ces services
+sont lourds et persistants. `docker-compose.yml` lance l'application MLOps :
+Streamlit, FastAPI, Prometheus et Grafana. Cette separation evite de redemarrer
+GitLab quand on veut seulement tester l'application.
+
+## 4. Pipeline CI/CD
+
+Le pipeline contient six stages : `lint`, `test`, `build`, `scan`, `push` et
+`deploy`.
+
+Le stage `lint` controle la qualite du code avant les tests. Il utilise `flake8`
+pour detecter des erreurs de style ou des problemes simples, et `black --check`
+pour verifier que le formatage Python est homogene. Le lint ne teste pas le
+modele : il sert a refuser un code mal forme avant de lancer des etapes plus
+couteuses.
+
+Le stage `test` installe les dependances Python, telecharge les ressources NLTK
+et lance pytest. Les tests couvrent le preprocessing NLP, l'entrainement minimal,
+les endpoints FastAPI et la presence des fichiers importants du projet. Il
+genere aussi `test-results.xml` et `coverage.xml`.
+
+Le stage `build` construit deux images Docker : l'image Streamlit
+`ghcr.io/vina771/projet11-mlops` et l'image FastAPI
+`ghcr.io/vina771/projet11-fastapi`. Chaque image recoit un tag
+`$CI_PIPELINE_ID` pour la tracabilite et un tag `latest` pour la derniere
+version.
+
+Le stage `scan` utilise Trivy pour analyser les vulnerabilites HIGH et CRITICAL.
+Le stage `push` se connecte a GHCR avec les variables GitLab CI/CD et pousse les
+deux images. Le stage `deploy` lance Ansible pour tirer l'image depuis GHCR et
+relancer le conteneur de deploiement.
+
+## 5. Probleme rencontre et correction
+
+Le pipeline GitLab a echoue au stage `test` avec l'erreur :
+
+```text
+ModuleNotFoundError: No module named 'src'
+```
+
+Cette erreur arrive pendant la collecte pytest, quand `tests/test_api.py` tente
+d'importer l'application avec `from src import app as api`. Dans l'environnement
+GitLab CI, la racine du depot n'etait pas garantie dans le chemin d'import
+Python.
+
+La correction appliquee rend ce chemin explicite :
+
+- ajout de `PYTHONPATH: "$CI_PROJECT_DIR"` dans `.gitlab-ci.yml` ;
+- ajout de `tests/conftest.py` pour ajouter la racine du projet a `sys.path` ;
+- remplacement de `pytest ...` par `python -m pytest ...` dans le job GitLab.
+
+Les tests locaux ont ete relances apres correction et donnent `21 passed`.
+
+## 6. Registry, securite et secrets
+
+Le registry final est GHCR. Les images attendues sont :
+
+- `ghcr.io/vina771/projet11-mlops:latest`
+- `ghcr.io/vina771/projet11-fastapi:latest`
+
+Les secrets ne sont pas commites dans le depot. Le token GHCR doit etre place
+uniquement dans GitLab CI/CD, dans les variables masquees :
+
+- `REGISTRY`
+- `IMAGE_NAME`
+- `FASTAPI_IMAGE_NAME`
+- `GHCR_USER`
+- `GHCR_TOKEN`
+
+Trivy fournit le controle securite dans le pipeline. Cela remplace la partie
+scan Harbor tout en gardant un rapport visible dans les logs GitLab.
+
+## 7. Deploiement et comportement V1/V2
+
+Le principe de CI/CD est que la version deployee ne doit etre remplacee que si
+les controles obligatoires passent. Si une V1 fonctionne et qu'une V2 echoue au
+stage `test`, la V2 n'est pas construite, pas poussee et pas deployee. La V1
+reste donc en place.
+
+Si la V2 passe les tests mais echoue au build, au push ou au deploy, le
+deploiement final ne se termine pas. Comme le remplacement du conteneur arrive a
+la fin, l'ancienne version reste normalement active tant que la nouvelle n'est
+pas relancee avec succes.
+
+Dans l'etat actuel, le playbook Ansible automatise surtout le redeploiement du
+conteneur Streamlit. FastAPI est bien construite et poussee dans GHCR, mais un
+deploiement complet des deux services doit etre fait via Docker Compose ou par
+une extension du playbook.
+
+## 8. Monitoring et demonstration
+
+FastAPI expose les metriques Prometheus sur `/metrics`. Prometheus collecte ces
+metriques et Grafana les affiche dans un dashboard provisionne automatiquement.
+Les URLs locales de demonstration sont :
 
 - Streamlit : `http://localhost:8501`
 - FastAPI : `http://localhost:8000`
+- FastAPI docs : `http://localhost:8000/docs`
 - Prometheus : `http://localhost:9090`
 - Grafana : `http://localhost:3000`
 
-## Points de demonstration
+Les captures recommandees pour le rendu sont :
 
-1. Montrer GitLab CE et un pipeline execute.
-2. Montrer l'image dans GitHub Packages / GHCR.
-3. Montrer le rapport Trivy dans les logs du stage scan.
-4. Montrer l'application Streamlit locale.
-5. Appeler FastAPI `/predict`.
-6. Montrer les metriques dans Prometheus/Grafana.
-7. Montrer le miroir GitHub public pour le rendu.
+- capture du pipeline GitLab avec les six stages ;
+- capture du job `test` corrige ;
+- capture de FastAPI `/docs` ;
+- capture de MLflow si l'interface est lancee localement ;
+- capture Streamlit ;
+- capture Prometheus ou Grafana.
+
+## 9. Conclusion
+
+Le projet couvre les criteres principaux du sujet : pipeline CI/CD, tests
+automatises, containerisation Docker, scan de vulnerabilites, registry d'images,
+deploiement automatise et documentation. L'adaptation GHCR au lieu de Harbor est
+un choix technique justifie par l'environnement local, mais la logique MLOps
+reste la meme : chaque modification de code passe par des controles avant de
+pouvoir produire et deployer une nouvelle image.

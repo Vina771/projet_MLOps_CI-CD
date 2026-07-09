@@ -9,6 +9,7 @@
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   DOCKER_TLS_CERTDIR: ""
+  PYTHONPATH: "$CI_PROJECT_DIR"
   REGISTRY: "ghcr.io"
   IMAGE_NAME: "ghcr.io/vina771/projet11-mlops"
   FASTAPI_IMAGE_NAME: "ghcr.io/vina771/projet11-fastapi"
@@ -34,7 +35,7 @@ test:
     - python -m pip install --upgrade pip
     - pip install -r requirements.txt pytest pytest-cov httpx
     - python -m nltk.downloader punkt stopwords wordnet omw-1.4 punkt_tab -d /usr/share/nltk_data || true
-    - pytest tests/ -v --tb=short --junit-xml=test-results.xml --cov=src --cov-report=xml
+    - python -m pytest tests/ -v --tb=short --junit-xml=test-results.xml --cov=src --cov-report=xml
   artifacts:
     when: always
     reports:

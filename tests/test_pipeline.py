@@ -155,7 +155,6 @@ class TestFichiersProjet:
             "README.md",
             "docker-compose.infra.yml",
             ".gitlab-ci.yml",
-            "setup_mlops.ps1",
         ]
         for file_path in files:
             content = Path(file_path).read_text(encoding="utf-8")

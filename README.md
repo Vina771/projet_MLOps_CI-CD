@@ -139,7 +139,3 @@ Le projet utilise GHCR pour eviter la maintenance d'un registry local sous Windo
 ## Auteur
 
 Vina - Master 1 IA & Data Science, INSI Madagascar
-
-## Suite manuelle
-
-Les etapes restantes sont detaillees dans `docs/reste_a_faire.md` : ajout du token GHCR dans GitLab, variables GitLab CI/CD, push GitLab/GitHub et test du pipeline complet.
