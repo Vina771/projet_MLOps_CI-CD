@@ -19,8 +19,25 @@ try:
 except Exception:  # pragma: no cover
     download_models = None
 
-for resource in ["punkt", "stopwords", "wordnet", "omw-1.4", "punkt_tab"]:
-    nltk.download(resource, quiet=True)
+NLTK_RESOURCES = {
+    "punkt": "tokenizers/punkt",
+    "stopwords": "corpora/stopwords",
+    "wordnet": "corpora/wordnet",
+    "omw-1.4": "corpora/omw-1.4",
+    "punkt_tab": "tokenizers/punkt_tab",
+}
+
+for resource, data_path in NLTK_RESOURCES.items():
+    try:
+        nltk.data.find(data_path)
+    except LookupError:
+        try:
+            nltk.download(resource, quiet=True)
+        except Exception:  # pragma: no cover
+            # Ne bloque jamais l'import si le reseau est indisponible ;
+            # les fonctions qui en ont besoin echoueront plus tard
+            # avec une erreur explicite plutot que de figer l'import.
+            pass
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 MODEL_PATH = BASE_DIR / "models" / "best_model.pkl"
