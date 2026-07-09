@@ -169,13 +169,17 @@ class TestFichiersProjet:
         assert "REGISTRY" in content
         assert "ghcr.io" in content
         assert "IMAGE_NAME" in content
+        assert "FASTAPI_IMAGE_NAME" in content
         assert "GHCR_TOKEN" in content
+        assert "docker/Dockerfile" in content
+        assert "$FASTAPI_IMAGE_NAME:$IMAGE_TAG" in content
 
     def test_requirements_api_monitoring(self):
         content = Path("requirements.txt").read_text(encoding="utf-8")
         assert "fastapi" in content
         assert "prometheus-client" in content
         assert "streamlit" in content
+        assert "uvicorn" in content
 
     def test_dockerfiles_exposent_ports(self):
         streamlit = Path("Dockerfile.streamlit").read_text(encoding="utf-8")

@@ -10,8 +10,11 @@ services:
     environment:
       MODEL_FILE_ID: ${MODEL_FILE_ID:-1Uz5OWnaq0YNuB-sPX54HKsYa-Cyx_A-h}
       TFIDF_FILE_ID: ${TFIDF_FILE_ID:-1enUkbrp1GeLTREt9i0LDBhlfl8wpszJY}
+      API_BASE_URL: ${API_BASE_URL:-http://fastapi:8000}
     volumes:
       - ./models:/app/models
+    depends_on:
+      - fastapi
     restart: unless-stopped
     networks:
       - mlops_network

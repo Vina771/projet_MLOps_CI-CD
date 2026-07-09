@@ -8,6 +8,7 @@ Projet MLOps de deploiement du Projet 11 NLP : analyse de sentiment sur des twee
 Push GitLab CE local
   -> GitLab CI/CD + GitLab Runner
   -> lint -> test -> build Docker -> scan Trivy -> push GHCR -> deploy Ansible
+  -> images Streamlit + FastAPI publiees dans GHCR
   -> Streamlit http://localhost:8501
   -> FastAPI http://localhost:8000
   -> Prometheus http://localhost:9090
@@ -71,6 +72,7 @@ Configurer ensuite les variables GitLab CI/CD dans `Settings -> CI/CD -> Variabl
 |---|---|
 | `REGISTRY` | `ghcr.io` |
 | `IMAGE_NAME` | `ghcr.io/vina771/projet11-mlops` |
+| `FASTAPI_IMAGE_NAME` | `ghcr.io/vina771/projet11-fastapi` |
 | `GHCR_USER` | `Vina771` |
 | `GHCR_TOKEN` | token GitHub, masked/protected |
 
@@ -107,6 +109,8 @@ Etat verifie le 2026-07-07 :
 - Les modeles `best_model.pkl` et `tfidf_vectorizer.pkl` sont telecharges dans `models/`.
 - Les images locales `ghcr.io/vina771/projet11-mlops:local` et `ghcr.io/vina771/projet11-fastapi:local` sont construites.
 - Streamlit, FastAPI, Prometheus et Grafana sont lances via Docker Compose.
+- Streamlit appelle FastAPI par defaut via `API_BASE_URL` pour les predictions et garde un fallback local.
+- Une page `Tester API FastAPI` permet de tester `/health`, `/metrics`, `/predict` et `/predict/batch`.
 - Grafana provisionne automatiquement la datasource Prometheus et le dashboard `Projet 11 MLOps`.
 - `pytest tests/ -q`, `black --check` et `flake8` passent localement.
 
@@ -116,15 +120,16 @@ Le fichier `.gitlab-ci.yml` contient 6 stages :
 
 1. `lint` : flake8 + black
 2. `test` : pytest + coverage
-3. `build` : build de l'image Docker Streamlit
-4. `scan` : scan Trivy HIGH/CRITICAL
-5. `push` : push vers GHCR
+3. `build` : build des images Docker Streamlit et FastAPI
+4. `scan` : scan Trivy HIGH/CRITICAL des deux images
+5. `push` : push des deux images vers GHCR
 6. `deploy` : deploiement via Ansible
 
-L'image finale attendue est :
+Les images finales attendues sont :
 
 ```text
 ghcr.io/vina771/projet11-mlops:latest
+ghcr.io/vina771/projet11-fastapi:latest
 ```
 
 ## Justification registry

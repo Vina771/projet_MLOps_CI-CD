@@ -8,10 +8,10 @@ Ce document sert de support pour le rapport et la soutenance. Il explique le rol
 |---|---|---|
 | Git | Versionnement local du code | Indispensable pour suivre les changements, creer un historique propre et pousser vers GitLab/GitHub. |
 | GitLab CE | Depot principal local et interface CI/CD | Correspond au sujet, permet de montrer un pipeline complet dans un environnement controle. |
-| GitLab CI/CD | Orchestration du pipeline | Automatise les etapes `lint`, `test`, `build`, `scan`, `push` et `deploy`. |
+| GitLab CI/CD | Orchestration du pipeline | Automatise les etapes `lint`, `test`, `build`, `scan`, `push` et `deploy` pour les images Streamlit et FastAPI. |
 | GitLab Runner | Execution des jobs CI/CD | Execute les jobs dans des conteneurs Docker et accede au Docker daemon via `/var/run/docker.sock`. |
 | GitHub | Depot public de rendu | Permet de rendre le projet visible publiquement et de lier le code au registry GHCR. |
-| GHCR | Registry Docker principal | Remplace Harbor par un registry professionnel integre a GitHub, plus simple a maintenir sur Windows 11 + Docker Desktop. |
+| GHCR | Registry Docker principal | Stocke les images `projet11-mlops` et `projet11-fastapi`, avec authentification par token GitHub. |
 | Docker | Containerisation de l'application | Garantit un environnement reproductible pour Streamlit, FastAPI et le deploiement CI/CD. |
 | Dockerfile.streamlit | Image de l'interface Streamlit | Separe le packaging de l'interface utilisateur du packaging API. |
 | docker/Dockerfile | Image de l'API FastAPI | Permet de lancer l'API ML et les metriques dans un conteneur dedie. |
@@ -25,9 +25,9 @@ Ce document sert de support pour le rapport et la soutenance. Il explique le rol
 | NLTK | Pretraitement NLP | Fournit les ressources de tokenisation, stopwords et normalisation utilisees par le projet. |
 | joblib | Chargement des artefacts modele | Charge `best_model.pkl` et `tfidf_vectorizer.pkl`. |
 | gdown | Recuperation des modeles | Telecharge les artefacts `.pkl` depuis Google Drive sans les committer. |
-| FastAPI | API de prediction | Expose `/health`, `/predict`, `/predict/batch` et `/metrics`. |
+| FastAPI | API de prediction | Expose `/health`, `/predict`, `/predict/batch` et `/metrics`, appelee par Streamlit via `API_BASE_URL`. |
 | Uvicorn | Serveur ASGI FastAPI | Lance l'API dans le conteneur. |
-| Streamlit | Interface de demonstration | Donne une demo visuelle simple pour la soutenance et les tests utilisateurs. |
+| Streamlit | Interface de demonstration | Donne une demo visuelle, appelle FastAPI par defaut et propose une page de test des endpoints. |
 | pytest | Tests automatises | Verifie les fonctions ML, l'API et le pipeline applicatif. |
 | pytest-cov | Couverture de tests | Produit `coverage.xml` pour GitLab CI/CD. |
 | flake8 | Controle qualite Python | Detecte les erreurs de style et certains problemes statiques. |
@@ -71,10 +71,10 @@ Le sujet initial cite Harbor comme registry prive avec scan securite. La version
 
 Le critere registry reste couvert par :
 
-- build d'image Docker ;
+- build des images Docker Streamlit et FastAPI ;
 - scan Trivy ;
 - authentification par token ;
-- push vers un registry professionnel ;
+- push des deux images vers un registry professionnel ;
 - pull/deploiement depuis le registry.
 
 Le scan securite n'est pas perdu : il est effectue explicitement par Trivy dans GitLab CI/CD.

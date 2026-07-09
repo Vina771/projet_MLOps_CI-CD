@@ -74,3 +74,17 @@ A faire maintenant :
 - Pousser le depot local vers GitLab CE local si ce n'est pas deja fait.
 - Lancer un pipeline complet et verifier les 6 stages.
 - Verifier que l'image `ghcr.io/vina771/projet11-mlops:latest` apparait dans GitHub Packages.
+
+## 2026-07-09 - FastAPI utilisee par Streamlit et publiee en CI
+
+Fait :
+- Streamlit appelle FastAPI par defaut via `API_BASE_URL`.
+- Fallback conserve vers le modele local si FastAPI est indisponible.
+- Page Streamlit `Tester API FastAPI` ajoutee pour `/health`, `/metrics`, `/predict` et `/predict/batch`.
+- `docker-compose.yml` transmet `API_BASE_URL=http://fastapi:8000` au conteneur Streamlit.
+- `.gitlab-ci.yml` construit, scanne et pousse aussi l'image `ghcr.io/vina771/projet11-fastapi`.
+- Documentation mise a jour avec les deux images GHCR.
+
+A verifier :
+- Lancer Streamlit + FastAPI via Docker Compose et tester la page `Tester API FastAPI`.
+- Verifier dans GitLab que les stages `build`, `scan` et `push` traitent les deux images.

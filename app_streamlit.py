@@ -7,7 +7,11 @@ Lancement :
     streamlit run app_streamlit.py
 """
 
+import json
+import os
 import re
+import urllib.error
+import urllib.request
 import joblib
 import numpy as np
 import pandas as pd
@@ -75,6 +79,8 @@ MODEL_PATH = MODELS_DIR / "best_model.pkl"
 TFIDF_PATH = MODELS_DIR / "tfidf_vectorizer.pkl"
 REPORT_CSV = REPORTS_DIR / "comparaison_modeles.csv"
 REPORT_TXT = REPORTS_DIR / "rapport_modelisation.txt"
+API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000").rstrip("/")
+API_TIMEOUT = int(os.getenv("API_TIMEOUT", "5"))
 
 
 # =============================================================
@@ -158,6 +164,69 @@ def predict(text, model, tfidf):
         score = 0.0
 
     return label, score, tokens
+
+
+def call_fastapi(path, method="GET", payload=None, timeout=API_TIMEOUT):
+    url = f"{API_BASE_URL}{path}"
+    data = None
+    headers = {}
+    if payload is not None:
+        data = json.dumps(payload).encode("utf-8")
+        headers["Content-Type"] = "application/json"
+
+    request = urllib.request.Request(url, data=data, headers=headers, method=method)
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            raw = response.read().decode("utf-8")
+            content_type = response.headers.get("Content-Type", "")
+            if "application/json" in content_type or raw.strip().startswith(("{", "[")):
+                return True, json.loads(raw)
+            return True, raw
+    except (
+        urllib.error.URLError,
+        urllib.error.HTTPError,
+        TimeoutError,
+        json.JSONDecodeError,
+    ) as exc:
+        return False, str(exc)
+
+
+def predict_with_fastapi(text):
+    ok, data = call_fastapi("/predict", method="POST", payload={"text": text})
+    if not ok:
+        return None, None, None, data
+    return (
+        data.get("sentiment", "neutral"),
+        float(data.get("score", 0.0)),
+        data.get("cleaned_text", ""),
+        None,
+    )
+
+
+def batch_predict_with_fastapi(texts):
+    ok, data = call_fastapi("/predict/batch", method="POST", payload={"texts": texts})
+    if not ok:
+        return None, data
+    return data, None
+
+
+def predict_for_ui(text, model, tfidf, prefer_fastapi=True):
+    if prefer_fastapi:
+        label, score, tokens, error = predict_with_fastapi(text)
+        if error is None:
+            return label, score, tokens, "FastAPI", None
+
+    if model is not None and tfidf is not None:
+        label, score, tokens = predict(text, model, tfidf)
+        return label, score, tokens, "Modele local", None
+
+    return (
+        "neutral",
+        0.0,
+        "",
+        "Indisponible",
+        "FastAPI indisponible et modele local absent.",
+    )
 
 
 # =============================================================
@@ -247,6 +316,7 @@ DEMO_TEXTS = {
 # =============================================================
 
 model, tfidf = load_model()
+api_ok, api_health = call_fastapi("/health")
 
 
 # =============================================================
@@ -261,11 +331,23 @@ with st.sidebar:
             "Resultats des Modeles",
             "Statistiques Dataset",
             "Analyse en Temps Reel",
+            "Tester API FastAPI",
             "Textes de Demo",
             "A propos du Projet",
         ],
         label_visibility="collapsed",
     )
+    st.markdown("---")
+    use_fastapi = st.checkbox(
+        "Utiliser FastAPI pour les predictions",
+        value=True,
+        help="Streamlit appelle /predict. Si l'API est indisponible, le modele local prend le relais.",
+    )
+    st.caption(f"API : {API_BASE_URL}")
+    if api_ok:
+        st.success("FastAPI disponible")
+    else:
+        st.warning("FastAPI indisponible")
     st.markdown("---")
     if model is not None:
         st.success("Modele charge")
@@ -630,10 +712,14 @@ elif page == "Analyse en Temps Reel":
     st.markdown("Entrez un texte politique en anglais pour obtenir sa classification.")
     st.markdown("---")
 
-    if model is None or tfidf is None:
+    prediction_available = (use_fastapi and api_ok) or (
+        model is not None and tfidf is not None
+    )
+
+    if not prediction_available:
         st.error(
-            "Modele non charge. "
-            "Placez best_model.pkl et tfidf_vectorizer.pkl dans le dossier models/."
+            "Prediction indisponible. Demarrez FastAPI ou placez best_model.pkl "
+            "et tfidf_vectorizer.pkl dans le dossier models/."
         )
     else:
         # --- Texte unique ---
@@ -650,7 +736,11 @@ elif page == "Analyse en Temps Reel":
 
         if st.button("Analyser", type="primary", use_container_width=True):
             if user_input.strip():
-                label, score, tokens = predict(user_input, model, tfidf)
+                label, score, tokens, source, error = predict_for_ui(
+                    user_input, model, tfidf, use_fastapi
+                )
+                if error:
+                    st.warning(error)
 
                 col1, col2, col3 = st.columns([1, 2, 1])
                 with col2:
@@ -666,6 +756,7 @@ elif page == "Analyse en Temps Reel":
                     if score > 0:
                         st.progress(score)
                         st.caption(f"Confiance du modele : {score:.1%}")
+                    st.caption(f"Source de prediction : {source}")
 
                 st.markdown("**Tokens extraits apres preprocessing :**")
                 st.code(
@@ -697,12 +788,15 @@ elif page == "Analyse en Temps Reel":
             if lines:
                 rows = []
                 for line in lines:
-                    lbl, scr, _ = predict(line, model, tfidf)
+                    lbl, scr, _, source, _ = predict_for_ui(
+                        line, model, tfidf, use_fastapi
+                    )
                     rows.append(
                         {
                             "Texte": line[:90] + ("..." if len(line) > 90 else ""),
                             "Sentiment": lbl.capitalize(),
                             "Score": round(scr, 3),
+                            "Source": source,
                         }
                     )
                 result_df = pd.DataFrame(rows)
@@ -747,7 +841,97 @@ elif page == "Analyse en Temps Reel":
 
 
 # =============================================================
-# PAGE 4 - TEXTES DE DEMO
+# PAGE 4 - TEST API FASTAPI
+# =============================================================
+
+elif page == "Tester API FastAPI":
+
+    st.title("Tester les Endpoints FastAPI")
+    st.markdown("Interface simple pour verifier les endpoints exposes par l'API ML.")
+    st.markdown("---")
+
+    st.markdown('<p class="section-title">Statut API</p>', unsafe_allow_html=True)
+    col_h, col_m = st.columns(2)
+    with col_h:
+        if st.button("Verifier /health", use_container_width=True):
+            ok, data = call_fastapi("/health")
+            if ok:
+                st.success("FastAPI repond correctement.")
+                st.json(data)
+            else:
+                st.error(data)
+    with col_m:
+        if st.button("Lire /metrics", use_container_width=True):
+            ok, data = call_fastapi("/metrics")
+            if ok:
+                st.code(str(data)[:2500], language="text")
+            else:
+                st.error(data)
+
+    st.markdown("---")
+    st.markdown('<p class="section-title">POST /predict</p>', unsafe_allow_html=True)
+
+    examples = {
+        "Positif": "A new era of peace and cooperation begins today.",
+        "Negatif": "The government completely failed the people during the crisis.",
+        "Neutre": "The parliament will vote on the budget next week.",
+    }
+    selected_example = st.selectbox("Exemple :", list(examples.keys()))
+    endpoint_text = st.text_area(
+        "Texte envoye a FastAPI :",
+        value=examples[selected_example],
+        height=110,
+    )
+
+    if st.button("Envoyer a /predict", type="primary", use_container_width=True):
+        ok, data = call_fastapi(
+            "/predict", method="POST", payload={"text": endpoint_text}
+        )
+        if ok:
+            sentiment = data.get("sentiment", "neutral")
+            st.markdown(
+                f'<div class="result-box {sentiment}">{sentiment.upper()}</div>',
+                unsafe_allow_html=True,
+            )
+            st.json(data)
+        else:
+            st.error(data)
+
+    st.markdown("---")
+    st.markdown(
+        '<p class="section-title">POST /predict/batch</p>', unsafe_allow_html=True
+    )
+
+    batch_default = "\n".join(examples.values())
+    endpoint_batch = st.text_area(
+        "Textes envoyes a FastAPI, un par ligne :",
+        value=batch_default,
+        height=140,
+    )
+
+    if st.button("Envoyer a /predict/batch", use_container_width=True):
+        texts = [line.strip() for line in endpoint_batch.splitlines() if line.strip()]
+        ok, data = call_fastapi(
+            "/predict/batch", method="POST", payload={"texts": texts}
+        )
+        if ok:
+            rows = [
+                {
+                    "Texte": item.get("text", "")[:90],
+                    "Sentiment": item.get("sentiment", "").capitalize(),
+                    "Score": item.get("score", 0.0),
+                    "Tokens": item.get("cleaned_text", ""),
+                }
+                for item in data
+            ]
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
+            st.json(data)
+        else:
+            st.error(data)
+
+
+# =============================================================
+# PAGE 5 - TEXTES DE DEMO
 # =============================================================
 
 elif page == "Textes de Demo":
@@ -759,20 +943,28 @@ elif page == "Textes de Demo":
     )
     st.markdown("---")
 
-    if model is None or tfidf is None:
+    prediction_available = (use_fastapi and api_ok) or (
+        model is not None and tfidf is not None
+    )
+
+    if not prediction_available:
         st.error(
-            "Modele non charge. Placez best_model.pkl et tfidf_vectorizer.pkl dans models/."
+            "Prediction indisponible. Demarrez FastAPI ou placez best_model.pkl "
+            "et tfidf_vectorizer.pkl dans models/."
         )
     else:
         # Analyser tous les textes de demo d'un coup
         demo_results = {}
         for titre, texte in DEMO_TEXTS.items():
-            lbl, scr, tokens = predict(texte, model, tfidf)
+            lbl, scr, tokens, source, _ = predict_for_ui(
+                texte, model, tfidf, use_fastapi
+            )
             demo_results[titre] = {
                 "texte": texte,
                 "label": lbl,
                 "score": scr,
                 "tokens": tokens,
+                "source": source,
             }
 
         # Afficher par groupe
@@ -814,6 +1006,7 @@ elif page == "Textes de Demo":
                         if r["score"] > 0:
                             st.markdown(f"**Confiance :** {r['score']:.1%}")
                     with colB:
+                        st.markdown(f"**Source :** {r['source']}")
                         st.markdown(f"**Tokens :** `{r['tokens'][:80]}...`")
             st.markdown("")
 
@@ -927,7 +1120,7 @@ pour classer automatiquement les tweets en : Positif, Neutre, Negatif.
 | MLOps | MLflow (tracking + registry) |
 | API | FastAPI, Uvicorn, Pydantic |
 | Dashboard | Streamlit |
-| Docker | Dockerfile.api, Dockerfile.streamlit |
+| Docker | docker/Dockerfile, Dockerfile.streamlit |
 | Environnement | Google Colab, Google Drive |
         """)
 
@@ -947,7 +1140,7 @@ Tweets bruts (3 datasets Kaggle)
     -> Meilleur modele selectionne : LinearSVC (F1 = 0.8902)
     -> API FastAPI (/predict, /predict/batch, /health)
     -> Dashboard Streamlit (analyse en temps reel)
-    -> Docker (Dockerfile.api + Dockerfile.streamlit)
+    -> Docker (docker/Dockerfile + Dockerfile.streamlit)
     -> Docker Hub + GitHub
     """,
         language="text",

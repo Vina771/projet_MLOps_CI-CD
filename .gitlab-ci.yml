@@ -11,6 +11,7 @@ variables:
   DOCKER_TLS_CERTDIR: ""
   REGISTRY: "ghcr.io"
   IMAGE_NAME: "ghcr.io/vina771/projet11-mlops"
+  FASTAPI_IMAGE_NAME: "ghcr.io/vina771/projet11-fastapi"
   IMAGE_TAG: "$CI_PIPELINE_ID"
 
 cache:
@@ -50,6 +51,7 @@ build:
   image: docker:27-cli
   script:
     - docker build -f Dockerfile.streamlit -t "$IMAGE_NAME:$IMAGE_TAG" -t "$IMAGE_NAME:latest" .
+    - docker build -f docker/Dockerfile -t "$FASTAPI_IMAGE_NAME:$IMAGE_TAG" -t "$FASTAPI_IMAGE_NAME:latest" .
   rules:
     - if: '$CI_COMMIT_BRANCH'
 
@@ -60,6 +62,7 @@ scan:
     entrypoint: [""]
   script:
     - trivy image --exit-code 0 --severity HIGH,CRITICAL "$IMAGE_NAME:$IMAGE_TAG"
+    - trivy image --exit-code 0 --severity HIGH,CRITICAL "$FASTAPI_IMAGE_NAME:$IMAGE_TAG"
   rules:
     - if: '$CI_COMMIT_BRANCH'
 
@@ -70,6 +73,8 @@ push:
     - echo "$GHCR_TOKEN" | docker login "$REGISTRY" -u "$GHCR_USER" --password-stdin
     - docker push "$IMAGE_NAME:$IMAGE_TAG"
     - docker push "$IMAGE_NAME:latest"
+    - docker push "$FASTAPI_IMAGE_NAME:$IMAGE_TAG"
+    - docker push "$FASTAPI_IMAGE_NAME:latest"
     - docker logout "$REGISTRY"
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'

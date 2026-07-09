@@ -32,6 +32,7 @@ Dans GitLab local : `http://localhost:8929`.
 |---|---|---|
 | `REGISTRY` | `ghcr.io` | non secret |
 | `IMAGE_NAME` | `ghcr.io/vina771/projet11-mlops` | non secret |
+| `FASTAPI_IMAGE_NAME` | `ghcr.io/vina771/projet11-fastapi` | non secret |
 | `GHCR_USER` | `Vina771` | non secret |
 | `GHCR_TOKEN` | token GitHub PAT | masked, protected si la branche main est protegee |
 
@@ -76,8 +77,8 @@ Points a verifier :
 - Le stage `lint` passe avec Black et flake8.
 - Le stage `test` genere `coverage.xml` et `test-results.xml`.
 - Le stage `build` cree les tags `$CI_PIPELINE_ID` et `latest`.
-- Le stage `scan` affiche le rapport Trivy.
-- Le stage `push` pousse l'image dans GHCR.
+- Le stage `scan` affiche le rapport Trivy pour les images Streamlit et FastAPI.
+- Le stage `push` pousse les deux images dans GHCR.
 - Le stage `deploy` relance le conteneur Streamlit depuis GHCR.
 
 ## 5. Verifier GitHub Packages
@@ -89,6 +90,7 @@ Apres le pipeline :
 
 ```text
 ghcr.io/vina771/projet11-mlops:latest
+ghcr.io/vina771/projet11-fastapi:latest
 ```
 
 3. Si le package est prive, le rendre public seulement si demande pour le rendu.

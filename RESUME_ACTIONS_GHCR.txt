@@ -68,3 +68,18 @@ Justification Compose :
 Securite token :
 - Le token GitHub ne doit pas etre ecrit dans le depot.
 - Il doit etre ajoute uniquement comme variable GitLab CI/CD GHCR_TOKEN.
+
+MISE A JOUR 2026-07-09
+=====================
+
+FastAPI est maintenant utilisee directement par Streamlit :
+- `API_BASE_URL` configure l'URL de l'API.
+- En Docker Compose, Streamlit appelle `http://fastapi:8000`.
+- Une page `Tester API FastAPI` permet de tester `/health`, `/metrics`, `/predict` et `/predict/batch`.
+- Si FastAPI est indisponible, Streamlit garde un fallback vers le modele local.
+
+Pipeline :
+- Build image Streamlit : `ghcr.io/vina771/projet11-mlops`.
+- Build image FastAPI : `ghcr.io/vina771/projet11-fastapi`.
+- Trivy scanne les deux images.
+- Le stage push pousse les deux images avec les tags `$CI_PIPELINE_ID` et `latest`.

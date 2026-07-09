@@ -16,7 +16,8 @@ Developpeur
 | Element | Valeur |
 |---|---|
 | Registry | `ghcr.io` |
-| Image | `ghcr.io/vina771/projet11-mlops` |
+| Image Streamlit | `ghcr.io/vina771/projet11-mlops` |
+| Image FastAPI | `ghcr.io/vina771/projet11-fastapi` |
 | Tags | `latest` et `$CI_PIPELINE_ID` |
 | Authentification CI | `GHCR_USER` + `GHCR_TOKEN` |
 
@@ -26,6 +27,8 @@ Developpeur
 - FastAPI : endpoint `/predict`, `/predict/batch`, `/health`, `/metrics`.
 - Prometheus : collecte les metriques FastAPI toutes les 15 secondes.
 - Grafana : visualise trafic, latence, erreurs et repartition des sentiments.
+
+Streamlit appelle FastAPI par defaut via `API_BASE_URL`. Si FastAPI est indisponible, Streamlit peut encore utiliser le modele local comme fallback pour eviter une demo bloquee.
 
 ## Separation des fichiers Docker Compose
 
