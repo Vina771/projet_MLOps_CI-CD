@@ -138,4 +138,4 @@ Le projet utilise GHCR pour eviter la maintenance d'un registry local sous Windo
 
 ## Auteur
 
-Vina - Master 1 IA & Data Science, INSI Madagascar
+Vina RAHARITSIFA - M1 I2AD, INSI

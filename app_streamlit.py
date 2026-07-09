@@ -2,7 +2,7 @@
 Projet 11 - Analyse des Discours Politiques
 Dashboard Streamlit - Version sans donnees CSV
 Fonctionne uniquement avec best_model.pkl + tfidf_vectorizer.pkl
-Master 1 IA and Data Science - INSI
+Auteur : Vina RAHARITSIFA - M1 I2AD - INSI
 Lancement :
     streamlit run app_streamlit.py
 """
@@ -1075,7 +1075,9 @@ elif page == "A propos du Projet":
     with col1:
         st.markdown('<p class="section-title">Contexte</p>', unsafe_allow_html=True)
         st.markdown("""
-**Niveau :** Master 1 IA & Data Science — INSI
+**Auteur :** Vina RAHARITSIFA
+
+**Niveau :** M1 I2AD — INSI
 
 **Objectif :** Analyser le sentiment des discours politiques sur Twitter
 pour classer automatiquement les tweets en : Positif, Neutre, Negatif.
