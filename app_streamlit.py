@@ -41,7 +41,7 @@ for r in ["punkt", "stopwords", "wordnet", "omw-1.4", "punkt_tab"]:
 
 st.set_page_config(
     page_title="Projet 11 - Sentiment Analysis",
-    page_icon="🗳️",
+    page_icon=":bar_chart:",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -49,19 +49,109 @@ st.set_page_config(
 st.markdown(
     """
 <style>
+    :root {
+        --ink: #1f2937;
+        --muted: #667085;
+        --line: #d8dee9;
+        --panel: #ffffff;
+        --accent: #2563eb;
+        --accent-soft: #dbeafe;
+        --ok: #17803d;
+        --warn: #b45309;
+        --bad: #b42318;
+    }
+    .main .block-container {
+        max-width: 1180px;
+        padding-top: 1.5rem;
+        padding-bottom: 3rem;
+    }
+    h1, h2, h3 {
+        color: var(--ink);
+        letter-spacing: 0;
+    }
+    div[data-testid="stSidebar"] {
+        background: #f7f9fc;
+        border-right: 1px solid var(--line);
+    }
+    div[data-testid="stSidebar"] h1 {
+        font-size: 1.25rem;
+        margin-bottom: 0.25rem;
+    }
+    div[data-testid="stMetric"] {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 0.8rem 0.95rem;
+        box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+    }
+    div[data-testid="stDataFrame"] {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .hero {
+        border: 1px solid var(--line);
+        border-left: 5px solid var(--accent);
+        border-radius: 8px;
+        padding: 1rem 1.2rem;
+        margin: 0.25rem 0 1.25rem 0;
+        background: linear-gradient(90deg, #ffffff 0%, #f8fbff 100%);
+    }
+    .hero-title {
+        font-size: 1.75rem;
+        font-weight: 750;
+        color: var(--ink);
+        margin-bottom: 0.2rem;
+    }
+    .hero-subtitle {
+        color: var(--muted);
+        font-size: 0.98rem;
+        line-height: 1.45;
+    }
+    .status-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.65rem;
+        margin: 0.35rem 0 1.1rem 0;
+    }
+    .status-pill {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 0.35rem 0.75rem;
+        background: #ffffff;
+        color: var(--ink);
+        font-size: 0.88rem;
+        font-weight: 600;
+    }
+    .status-pill.ok { border-color: #bbf7d0; background: #f0fdf4; color: var(--ok); }
+    .status-pill.warn { border-color: #fed7aa; background: #fff7ed; color: var(--warn); }
     .section-title {
-        font-size: 1.2rem; font-weight: bold; color: #2c3e50;
-        padding: 0.4rem 0; border-bottom: 2px solid #3498db;
-        margin-bottom: 1rem;
+        font-size: 1.02rem;
+        font-weight: 750;
+        color: var(--ink);
+        padding: 0.35rem 0 0.5rem 0;
+        border-bottom: 1px solid var(--line);
+        margin: 1rem 0 0.85rem 0;
     }
     .result-box {
-        padding: 1.2rem 1.5rem; border-radius: 10px;
-        text-align: center; font-size: 1.4rem; font-weight: bold;
+        padding: 1.1rem 1.3rem;
+        border-radius: 8px;
+        text-align: center;
+        font-size: 1.35rem;
+        font-weight: 800;
         margin: 1rem 0;
+        letter-spacing: 0.02rem;
     }
-    .positive { background: #d5f5e3; color: #1e8449; border: 2px solid #2ecc71; }
-    .negative { background: #fadbd8; color: #922b21; border: 2px solid #e74c3c; }
-    .neutral  { background: #eaecee; color: #566573; border: 2px solid #95a5a6; }
+    .positive { background: #ecfdf3; color: #087443; border: 1px solid #75e0a7; }
+    .negative { background: #fff1f3; color: #b42318; border: 1px solid #fda29b; }
+    .neutral  { background: #f2f4f7; color: #475467; border: 1px solid #cfd4dc; }
+    .stButton > button {
+        border-radius: 7px;
+        font-weight: 700;
+    }
+    textarea, input, select {
+        border-radius: 7px !important;
+    }
 </style>
 """,
     unsafe_allow_html=True,
@@ -148,7 +238,7 @@ def predict(text, model, tfidf):
     pred = model.predict(vec)[0]
     label = LABEL_NAMES[pred]
 
-    # LinearSVC n'a pas predict_proba — on utilise decision_function
+    # LinearSVC n'a pas predict_proba, on utilise decision_function
     # et on convertit via softmax pour obtenir un score entre 0 et 1
     if hasattr(model, "predict_proba"):
         score = float(model.predict_proba(vec)[0][pred])
@@ -319,12 +409,35 @@ model, tfidf = load_model()
 api_ok, api_health = call_fastapi("/health")
 
 
+def render_page_header(title, subtitle):
+    api_class = "ok" if api_ok else "warn"
+    api_label = "FastAPI disponible" if api_ok else "FastAPI indisponible"
+    model_class = "ok" if model is not None and tfidf is not None else "warn"
+    model_label = "Modele local charge" if model is not None else "Modele local absent"
+    st.markdown(
+        f"""
+<div class="hero">
+  <div class="hero-title">{title}</div>
+  <div class="hero-subtitle">{subtitle}</div>
+</div>
+<div class="status-row">
+  <span class="status-pill {api_class}">{api_label}</span>
+  <span class="status-pill {model_class}">{model_label}</span>
+  <span class="status-pill">LinearSVC - F1 test 0.8902</span>
+  <span class="status-pill">Vina RAHARITSIFA, M1 I2AD, INSI</span>
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
 # =============================================================
 # SIDEBAR
 # =============================================================
 
 with st.sidebar:
-    st.title("Navigation")
+    st.title("Projet 11 MLOps")
+    st.caption("Vina RAHARITSIFA, M1 I2AD, INSI")
     page = st.radio(
         "Section :",
         [
@@ -338,8 +451,9 @@ with st.sidebar:
         label_visibility="collapsed",
     )
     st.markdown("---")
+    st.markdown("**Service de prediction**")
     use_fastapi = st.checkbox(
-        "Utiliser FastAPI pour les predictions",
+        "Predictions via FastAPI",
         value=True,
         help="Streamlit appelle /predict. Si l'API est indisponible, le modele local prend le relais.",
     )
@@ -357,7 +471,7 @@ with st.sidebar:
         st.error("Modele non charge")
         st.caption("Placez best_model.pkl et tfidf_vectorizer.pkl dans models/")
     st.markdown("---")
-    st.caption("Projet NLP - INSI")
+    st.caption("Projet NLP - CI/CD Docker GitLab GHCR")
     st.caption("LinearSVC | F1 = 0.8902")
 
 
@@ -367,11 +481,10 @@ with st.sidebar:
 
 if page == "Resultats des Modeles":
 
-    st.title("Resultats des Modeles de Classification")
-    st.markdown(
-        "5 modeles entraines et compares sur 600 000 tweets (echantillon stratifie)"
+    render_page_header(
+        "Resultats des modeles",
+        "Comparaison de 5 classifieurs entraines sur 600 000 tweets politiques avec evaluation validation, test et cross-validation.",
     )
-    st.markdown("---")
 
     # Charger depuis CSV si dispo, sinon utiliser les donnees figees
     if REPORT_CSV.exists():
@@ -509,7 +622,7 @@ if page == "Resultats des Modeles":
     ax.set_xticklabels([n.replace(" ", "\n") for n in comp_df.index], fontsize=9)
     ax.set_ylim(0, 1.05)
     ax.set_ylabel("F1 Score (weighted)")
-    ax.set_title("Comparaison F1 Validation vs Test — pas d'overfitting")
+    ax.set_title("Comparaison F1 Validation vs Test - pas d'overfitting")
     ax.legend()
     for i, (v, t) in enumerate(zip(comp_df["F1 (Val)"], comp_df["F1 (Test)"])):
         ax.text(i - w / 2, v + 0.01, f"{v:.3f}", ha="center", fontsize=7)
@@ -560,9 +673,10 @@ if page == "Resultats des Modeles":
 
 elif page == "Statistiques Dataset":
 
-    st.title("Statistiques des Datasets")
-    st.markdown("Donnees issues du pipeline de preprocessing execute sur Google Colab.")
-    st.markdown("---")
+    render_page_header(
+        "Statistiques des datasets",
+        "Vue de controle des donnees consolidees, de la distribution des sentiments et du pipeline de preprocessing NLP.",
+    )
 
     # Metriques globales
     total = sum(v["tweets"] for v in DATASET_STATS.values())
@@ -708,9 +822,10 @@ elif page == "Statistiques Dataset":
 
 elif page == "Analyse en Temps Reel":
 
-    st.title("Analyse de Sentiment en Temps Reel")
-    st.markdown("Entrez un texte politique en anglais pour obtenir sa classification.")
-    st.markdown("---")
+    render_page_header(
+        "Analyse de sentiment en temps reel",
+        "Saisissez un texte politique en anglais et obtenez une prediction via FastAPI, avec fallback local si necessaire.",
+    )
 
     prediction_available = (use_fastapi and api_ok) or (
         model is not None and tfidf is not None
@@ -846,9 +961,10 @@ elif page == "Analyse en Temps Reel":
 
 elif page == "Tester API FastAPI":
 
-    st.title("Tester les Endpoints FastAPI")
-    st.markdown("Interface simple pour verifier les endpoints exposes par l'API ML.")
-    st.markdown("---")
+    render_page_header(
+        "Tester l'API FastAPI",
+        "Controle rapide des endpoints /health, /metrics, /predict et /predict/batch exposes par le service ML.",
+    )
 
     st.markdown('<p class="section-title">Statut API</p>', unsafe_allow_html=True)
     col_h, col_m = st.columns(2)
@@ -936,12 +1052,10 @@ elif page == "Tester API FastAPI":
 
 elif page == "Textes de Demo":
 
-    st.title("Textes de Demonstration")
-    st.markdown(
-        "Textes politiques pre-selectionnes couvrant differentes categories de sentiment. "
-        "Cliquez sur un texte pour l analyser directement."
+    render_page_header(
+        "Textes de demonstration",
+        "Jeu d'exemples positif, negatif et neutre pour verifier rapidement le comportement du modele pendant la demo.",
     )
-    st.markdown("---")
 
     prediction_available = (use_fastapi and api_ok) or (
         model is not None and tfidf is not None
@@ -992,7 +1106,7 @@ elif page == "Textes de Demo":
                     "neutral": "#95a5a6",
                 }[lbl]
 
-                with st.expander(f"{key.split(' - ')[1]}  —  prediction : {emoji}"):
+                with st.expander(f"{key.split(' - ')[1]} - prediction : {emoji}"):
                     st.markdown("**Texte :**")
                     st.markdown(f"> {r['texte']}")
                     st.markdown("")
@@ -1067,8 +1181,10 @@ elif page == "Textes de Demo":
 
 elif page == "A propos du Projet":
 
-    st.title("A propos du Projet 11")
-    st.markdown("---")
+    render_page_header(
+        "A propos du Projet 11",
+        "Synthese du contexte NLP, de la pile technique et de l'architecture MLOps presentee.",
+    )
 
     col1, col2 = st.columns(2)
 
@@ -1077,7 +1193,7 @@ elif page == "A propos du Projet":
         st.markdown("""
 **Auteur :** Vina RAHARITSIFA
 
-**Niveau :** M1 I2AD — INSI
+**Niveau :** M1 I2AD - INSI
 
 **Objectif :** Analyser le sentiment des discours politiques sur Twitter
 pour classer automatiquement les tweets en : Positif, Neutre, Negatif.
@@ -1143,7 +1259,7 @@ Tweets bruts (3 datasets Kaggle)
     -> API FastAPI (/predict, /predict/batch, /health)
     -> Dashboard Streamlit (analyse en temps reel)
     -> Docker (docker/Dockerfile + Dockerfile.streamlit)
-    -> Docker Hub + GitHub
+    -> GHCR + GitHub
     """,
         language="text",
     )

@@ -1,4 +1,4 @@
-﻿"""
+"""
 Projet MLOps CI/CD - Tests unitaires
 Pipeline GitLab CI/CD : pytest tests/
 """

@@ -166,10 +166,16 @@ def predict_sentiment(text: str) -> PredictResponse:
 
 @app.get("/health")
 def health():
+    model_exists = MODEL_PATH.exists()
+    tfidf_exists = TFIDF_PATH.exists()
     return {
         "status": "ok",
-        "model_exists": MODEL_PATH.exists(),
-        "tfidf_exists": TFIDF_PATH.exists(),
+        "service": "fastapi",
+        "version": app.version,
+        "model_exists": model_exists,
+        "tfidf_exists": tfidf_exists,
+        "model_loaded": model is not None and tfidf is not None,
+        "ready": model_exists and tfidf_exists,
     }
 
 

@@ -1,4 +1,4 @@
-﻿# Cahier des charges - Projet MLOps CI/CD
+# Cahier des charges - Projet MLOps CI/CD
 
 ## Objectif
 
@@ -22,7 +22,7 @@ Mettre en place une chaine CI/CD locale pour deployer automatiquement une applic
 
 ## Resultats attendus
 
-- Pipeline 6 stages fonctionnel.
+- Pipeline 6 stages fonctionnel, avec cleanup final pour le runner Docker.
 - Image poussee dans GHCR.
 - Rapport Trivy visible dans les logs du pipeline.
 - Application Streamlit disponible sur `http://localhost:8501`.

@@ -57,8 +57,9 @@ GitLab quand on veut seulement tester l'application.
 
 ## 4. Pipeline CI/CD
 
-Le pipeline contient six stages : `lint`, `test`, `build`, `scan`, `push` et
-`deploy`.
+Le pipeline contient six stages principaux : `lint`, `test`, `build`, `scan`,
+`push` et `deploy`, puis un stage `cleanup` pour nettoyer les tags CI temporaires
+et le cache Docker du runner.
 
 Le stage `lint` controle la qualite du code avant les tests. Il utilise `flake8`
 pour detecter des erreurs de style ou des problemes simples, et `black --check`
@@ -153,7 +154,7 @@ Les URLs locales de demonstration sont :
 
 Les captures recommandees pour le rendu sont :
 
-- capture du pipeline GitLab avec les six stages ;
+- capture du pipeline GitLab avec les six stages principaux et le cleanup ;
 - capture du job `test` corrige ;
 - capture de FastAPI `/docs` ;
 - capture de MLflow si l'interface est lancee localement ;

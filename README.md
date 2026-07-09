@@ -1,4 +1,4 @@
-﻿# Projet MLOps CI/CD avec Docker, GitLab et GHCR
+# Projet MLOps CI/CD avec Docker, GitLab et GHCR
 
 Projet MLOps de deploiement du Projet 11 NLP : analyse de sentiment sur des tweets politiques avec un modele LinearSVC + TF-IDF bigrammes.
 
@@ -116,7 +116,7 @@ Etat verifie le 2026-07-07 :
 
 ## Pipeline GitLab CI/CD
 
-Le fichier `.gitlab-ci.yml` contient 6 stages :
+Le fichier `.gitlab-ci.yml` contient 6 stages principaux et un cleanup final :
 
 1. `lint` : flake8 + black
 2. `test` : pytest + coverage
@@ -124,6 +124,7 @@ Le fichier `.gitlab-ci.yml` contient 6 stages :
 4. `scan` : scan Trivy HIGH/CRITICAL des deux images
 5. `push` : push des deux images vers GHCR
 6. `deploy` : deploiement via Ansible
+7. `cleanup` : suppression des tags CI temporaires et nettoyage du cache Docker
 
 Les images finales attendues sont :
 
