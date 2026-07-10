@@ -1,4 +1,4 @@
-﻿---
+---
 - name: Deploiement Projet 11 Streamlit depuis Harbor
   hosts: localhost
   connection: local
@@ -14,12 +14,12 @@
     app_port: "8501"
 
   tasks:
-    - name: Login Harbor
-      shell: echo "{{ registry_password }}" | docker login {{ registry }} -u {{ registry_user }} --password-stdin
+    - name: Login Harbor si credentials disponibles
+      shell: printf '%s' "{{ registry_password }}" | docker login {{ registry }} -u {{ registry_user }} --password-stdin
       no_log: true
       when: registry_password | length > 0
       register: login_result
-      failed_when: login_result.rc != 0
+      failed_when: false
 
     - name: Pull image depuis Harbor
       command: docker pull {{ image_name }}:{{ image_tag }}
@@ -52,4 +52,3 @@
       command: docker logout {{ registry }}
       ignore_errors: true
       when: registry_password | length > 0
-      
