@@ -126,10 +126,6 @@ push:
 deploy:
   stage: deploy
   image: "$ANSIBLE_CI_IMAGE"
-  variables:
-    IMAGE_NAME: "$IMAGE_NAME"
-    IMAGE_TAG: "$IMAGE_TAG"
-    REGISTRY: "$REGISTRY"
   before_script:
     - apk add --no-cache docker-cli || true
   script:
@@ -147,3 +143,4 @@ cleanup:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
       when: always
+      
