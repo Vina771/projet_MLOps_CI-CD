@@ -1,27 +1,27 @@
 ﻿---
-- name: Deploiement Projet 11 Streamlit depuis GHCR
+- name: Deploiement Projet 11 Streamlit depuis Harbor
   hosts: localhost
   connection: local
   gather_facts: false
 
   vars:
-    registry: "{{ lookup('env', 'REGISTRY') | default('ghcr.io', true) }}"
-    image_name: "{{ lookup('env', 'IMAGE_NAME') | default('ghcr.io/vina771/projet11-mlops', true) }}"
+    registry: "{{ lookup('env', 'REGISTRY') | default('host.docker.internal:8080', true) }}"
+    image_name: "{{ lookup('env', 'IMAGE_NAME') | default('host.docker.internal:8080/projet-mlops/projet11-mlops', true) }}"
     image_tag: "{{ lookup('env', 'IMAGE_TAG') | default('latest', true) }}"
-    ghcr_user: "{{ lookup('env', 'GHCR_USER') | default('Vina771', true) }}"
-    ghcr_token: "{{ lookup('env', 'GHCR_TOKEN') }}"
+    registry_user: "{{ lookup('env', 'REGISTRY_USER') | default('admin', true) }}"
+    registry_password: "{{ lookup('env', 'REGISTRY_PASSWORD') }}"
     container_name: "projet11_streamlit"
     app_port: "8501"
 
   tasks:
-    - name: Login GHCR
-      shell: echo "{{ ghcr_token }}" | docker login {{ registry }} -u {{ ghcr_user }} --password-stdin
+    - name: Login Harbor
+      shell: echo "{{ registry_password }}" | docker login {{ registry }} -u {{ registry_user }} --password-stdin
       no_log: true
-      when: ghcr_token | length > 0
+      when: registry_password | length > 0
       register: login_result
       failed_when: login_result.rc != 0
 
-    - name: Pull image depuis GHCR
+    - name: Pull image depuis Harbor
       command: docker pull {{ image_name }}:{{ image_tag }}
 
     - name: Arreter le conteneur existant si present
@@ -48,7 +48,8 @@
       debug:
         msg: "{{ container_status.stdout }}"
 
-    - name: Logout GHCR
+    - name: Logout Harbor
       command: docker logout {{ registry }}
       ignore_errors: true
-      when: ghcr_token | length > 0
+      when: registry_password | length > 0
+      

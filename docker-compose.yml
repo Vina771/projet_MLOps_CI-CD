@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.streamlit
-    image: ${IMAGE_NAME:-ghcr.io/vina771/projet11-mlops}:local
+    image: ${IMAGE_NAME:-localhost:8080/projet-mlops/projet11-mlops}:local
     container_name: projet11_streamlit
     ports:
       - "${STREAMLIT_PORT:-8501}:8501"
@@ -23,7 +23,7 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    image: ghcr.io/vina771/projet11-fastapi:local
+    image: ${FASTAPI_IMAGE_NAME:-localhost:8080/projet-mlops/projet11-fastapi}:local
     container_name: projet11_fastapi
     ports:
       - "${FASTAPI_PORT:-8000}:8000"

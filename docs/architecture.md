@@ -1,4 +1,4 @@
-﻿# Architecture - Projet MLOps CI/CD
+# Architecture - Projet MLOps CI/CD
 
 ## Flux CI/CD
 
@@ -7,7 +7,7 @@ Developpeur
   -> push GitLab CE local
   -> GitLab Runner
   -> lint / test / build / scan / push / deploy
-  -> GHCR
+  -> Harbor local
   -> deploiement Streamlit
 ```
 
@@ -15,11 +15,12 @@ Developpeur
 
 | Element | Valeur |
 |---|---|
-| Registry | `ghcr.io` |
-| Image Streamlit | `ghcr.io/vina771/projet11-mlops` |
-| Image FastAPI | `ghcr.io/vina771/projet11-fastapi` |
+| Registry | `localhost:8080` |
+| Projet Harbor | `projet-mlops` |
+| Image Streamlit | `host.docker.internal:8080/projet-mlops/projet11-mlops` |
+| Image FastAPI | `host.docker.internal:8080/projet-mlops/projet11-fastapi` |
 | Tags | `latest` et `$CI_PIPELINE_ID` |
-| Authentification CI | `GHCR_USER` + `GHCR_TOKEN` |
+| Authentification CI | `REGISTRY_USER` + `REGISTRY_PASSWORD` |
 
 ## Services applicatifs
 
@@ -61,6 +62,6 @@ Identifiants locaux Grafana :
 
 - Les secrets restent dans les variables GitLab CI/CD masked/protected.
 - Trivy scanne l'image avant le push.
-- GHCR stocke les images versionnees du pipeline.
+- Harbor stocke les images versionnees du pipeline.
 - Les artefacts lourds ne sont pas commits.
 - Les tests et le lint s'executent a chaque pipeline.

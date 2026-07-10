@@ -1,4 +1,4 @@
-# Projet MLOps CI/CD avec Docker, GitLab et GHCR
+# Projet MLOps CI/CD avec Docker, GitLab et Harbor
 
 Projet MLOps de deploiement du Projet 11 NLP : analyse de sentiment sur des tweets politiques avec un modele LinearSVC + TF-IDF bigrammes.
 
@@ -7,15 +7,15 @@ Projet MLOps de deploiement du Projet 11 NLP : analyse de sentiment sur des twee
 ```text
 Push GitLab CE local
   -> GitLab CI/CD + GitLab Runner
-  -> lint -> test -> build Docker -> scan Trivy -> push GHCR -> deploy Ansible
-  -> images Streamlit + FastAPI publiees dans GHCR
+  -> lint -> test -> build Docker -> scan Trivy -> push Harbor -> deploy Ansible
+  -> images Streamlit + FastAPI publiees dans Harbor local
   -> Streamlit http://localhost:8501
   -> FastAPI http://localhost:8000
   -> Prometheus http://localhost:9090
   -> Grafana http://localhost:3000
 ```
 
-GitHub sert de miroir public pour le rendu et GitHub Container Registry (GHCR) sert de registry Docker principal. Streamlit Cloud reste disponible comme demo publique.
+GitHub reste le miroir public pour le rendu du code. Harbor devient le registry Docker principal afin de reduire la dependance au Wi-Fi pendant les builds, push et deploys locaux.
 
 ## Services
 
@@ -23,7 +23,7 @@ GitHub sert de miroir public pour le rendu et GitHub Container Registry (GHCR) s
 |---|---|---|
 | GitLab CE | Depot principal et pipelines | http://localhost:8929 |
 | GitLab Runner | Execution des jobs CI/CD | conteneur Docker |
-| GHCR | Registry Docker principal | ghcr.io/vina771/projet11-mlops |
+| Harbor | Registry Docker local/offline | http://localhost:8080 |
 | Streamlit | Dashboard de demo | http://localhost:8501 |
 | FastAPI | API de prediction + metriques | http://localhost:8000 |
 | Prometheus | Scrape `/metrics` FastAPI | http://localhost:9090 |
@@ -37,9 +37,9 @@ GitHub sert de miroir public pour le rendu et GitHub Container Registry (GHCR) s
 | GitLab Runner | Execution des jobs `lint`, `test`, `build`, `scan`, `push`, `deploy` | Reproduit une chaine CI/CD professionnelle et pilote Docker via le socket Docker. |
 | Docker | Packaging reproductible de Streamlit, FastAPI et des services de monitoring | Standard DevOps, portable entre Windows/WSL2, GitLab CI et la soutenance. |
 | Docker Compose | Lancement coordonne des conteneurs | Simple pour demontrer l'infrastructure locale et l'application complete. |
-| GHCR | Registry Docker principal | Remplace Harbor par un registry professionnel plus simple a maintenir sous Windows, avec push/pull authentifie. |
-| Trivy | Scan de vulnerabilites de l'image Docker | Couvre l'exigence securite du sujet meme sans Harbor. |
-| Ansible | Redeploiement automatise depuis le pipeline | Automatise le pull de l'image GHCR et le redemarrage du conteneur de deploiement. |
+| Harbor | Registry Docker local principal | Conforme au sujet et permet de pousser/tirer les images sans dependre d'un registry cloud. |
+| Trivy | Scan de vulnerabilites de l'image Docker | Couvre l'exigence securite avec un rapport visible dans GitLab CI/CD. |
+| Ansible | Redeploiement automatise depuis le pipeline | Automatise le pull depuis Harbor et le redemarrage du conteneur de deploiement. |
 | Python 3.11 | Runtime cible dans Docker et GitLab CI | Version demandee dans le sujet et stable pour FastAPI/scikit-learn. |
 | FastAPI | API ML pour `/predict`, `/predict/batch`, `/health`, `/metrics` | Leger, rapide, documente automatiquement l'API et expose facilement les metriques. |
 | Streamlit | Interface de demonstration du modele NLP | Permet une demo visuelle rapide du Projet 11. |
@@ -59,32 +59,69 @@ Cette separation rend la soutenance plus claire : d'abord on montre la plateform
 
 Le tableau detaille des outils et de leurs choix est disponible dans `docs/outils_et_choix.md`.
 
-## Configuration GHCR
+## Configuration Harbor
 
-Creer un token GitHub personnel avec les permissions packages :
+Le dossier offline Harbor est deja present ici :
 
-- `write:packages`
-- `read:packages`
+```text
+C:\Users\Vina\Documents\Harbor\harbor
+```
 
-Configurer ensuite les variables GitLab CI/CD dans `Settings -> CI/CD -> Variables` :
+Sa configuration actuelle expose Harbor en HTTP sur `http://localhost:8080`. Pour un usage local, les images du projet utilisent :
+
+```text
+host.docker.internal:8080/projet-mlops/projet11-mlops
+host.docker.internal:8080/projet-mlops/projet11-fastapi
+```
+
+Variables GitLab CI/CD a configurer dans `Settings -> CI/CD -> Variables` :
 
 | Variable | Valeur |
 |---|---|
-| `REGISTRY` | `ghcr.io` |
-| `IMAGE_NAME` | `ghcr.io/vina771/projet11-mlops` |
-| `FASTAPI_IMAGE_NAME` | `ghcr.io/vina771/projet11-fastapi` |
-| `GHCR_USER` | `Vina771` |
-| `GHCR_TOKEN` | token GitHub, masked/protected |
+| `REGISTRY` | `localhost:8080` |
+| `HARBOR_PROJECT` | `projet-mlops` |
+| `IMAGE_NAME` | `host.docker.internal:8080/projet-mlops/projet11-mlops` |
+| `FASTAPI_IMAGE_NAME` | `host.docker.internal:8080/projet-mlops/projet11-fastapi` |
+| `REGISTRY_USER` | `admin` |
+| `REGISTRY_PASSWORD` | mot de passe Harbor, masked/protected |
 
-Le token GitHub personnel ne doit jamais etre committe, colle dans un fichier du projet ou affiche dans les logs.
 
-Test manuel possible :
+Pour reduire encore plus la dependance au reseau, les images de jobs CI sont miroirisees dans Harbor et utilisees par defaut :
+
+| Variable | Valeur par defaut (Harbor) | Image source d'origine |
+|---|---|---|
+| `PYTHON_CI_IMAGE` | `host.docker.internal:8080/projet-mlops/python:3.11-slim` | `python:3.11-slim` |
+| `DOCKER_CI_IMAGE` | `host.docker.internal:8080/projet-mlops/docker:27-cli` | `docker:27-cli` |
+| `TRIVY_CI_IMAGE` | `host.docker.internal:8080/projet-mlops/trivy:latest` | `aquasec/trivy:latest` |
+| `ANSIBLE_CI_IMAGE` | `host.docker.internal:8080/projet-mlops/ansible:latest` | `cytopia/ansible:latest` |
+
+Ces images doivent avoir ete miroirisees dans le projet Harbor `projet-mlops` au prealable (`docker pull` de l'image source, `docker tag` vers Harbor, `docker push`), sinon les jobs `lint`, `test`, `build` et `deploy` echoueront faute de pouvoir tirer l'image.
+Le mot de passe Harbor ne doit jamais etre committe. Le mot de passe initial dans `harbor.yml` est `Harbor12345`, mais il est preferable de le changer dans l'interface Harbor apres le premier demarrage.
+
+Commandes d'installation et de verification Harbor :
 
 ```powershell
-echo VOTRE_TOKEN | docker login ghcr.io -u Vina771 --password-stdin
-docker build -f Dockerfile.streamlit -t ghcr.io/vina771/projet11-mlops:test .
-docker push ghcr.io/vina771/projet11-mlops:test
+cd C:\Users\Vina\Documents\Harbor\harbor
+wsl
 ```
+
+Puis dans WSL :
+
+```bash
+cd /mnt/c/Users/Vina/Documents/Harbor/harbor
+sudo ./install.sh
+docker compose up -d
+```
+
+Ensuite dans Windows ou WSL :
+
+```powershell
+docker login localhost:8080 -u admin
+docker build -f Dockerfile.streamlit -t host.docker.internal:8080/projet-mlops/projet11-mlops:test .
+docker push host.docker.internal:8080/projet-mlops/projet11-mlops:test
+```
+
+Dans l'interface Harbor, creer le projet `projet-mlops` avant le premier push si Harbor ne le cree pas automatiquement.
 
 ## Lancement local
 
@@ -101,18 +138,15 @@ curl http://localhost:8000/health
 curl http://localhost:8000/metrics
 ```
 
-Etat verifie le 2026-07-07 :
+Etat local connu :
 
 - GitLab CE et GitLab Runner tournent localement.
 - Le runner `mlops-docker-runner` est enregistre avec l'executor Docker et le socket `/var/run/docker.sock`.
 - `venv` est installe en Python 3.12 avec les dependances du projet.
 - Les modeles `best_model.pkl` et `tfidf_vectorizer.pkl` sont telecharges dans `models/`.
-- Les images locales `ghcr.io/vina771/projet11-mlops:local` et `ghcr.io/vina771/projet11-fastapi:local` sont construites.
-- Streamlit, FastAPI, Prometheus et Grafana sont lances via Docker Compose.
 - Streamlit appelle FastAPI par defaut via `API_BASE_URL` pour les predictions et garde un fallback local.
 - Une page `Tester API FastAPI` permet de tester `/health`, `/metrics`, `/predict` et `/predict/batch`.
 - Grafana provisionne automatiquement la datasource Prometheus et le dashboard `Projet 11 MLOps`.
-- `pytest tests/ -q`, `black --check` et `flake8` passent localement.
 
 ## Pipeline GitLab CI/CD
 
@@ -122,20 +156,39 @@ Le fichier `.gitlab-ci.yml` contient 6 stages principaux et un cleanup final :
 2. `test` : pytest + coverage
 3. `build` : build des images Docker Streamlit et FastAPI
 4. `scan` : scan Trivy HIGH/CRITICAL des deux images
-5. `push` : push des deux images vers GHCR
+5. `push` : push des deux images vers Harbor
 6. `deploy` : deploiement via Ansible
 7. `cleanup` : suppression des tags CI temporaires et nettoyage du cache Docker
 
 Les images finales attendues sont :
 
 ```text
-ghcr.io/vina771/projet11-mlops:latest
-ghcr.io/vina771/projet11-fastapi:latest
+host.docker.internal:8080/projet-mlops/projet11-mlops:latest
+host.docker.internal:8080/projet-mlops/projet11-fastapi:latest
 ```
 
-## Justification registry
+## Economie de ressources Docker Desktop
 
-Le projet utilise GHCR pour eviter la maintenance d'un registry local sous Windows/WSL2. Le critere registry reste couvert par un registry professionnel integre a GitHub, et le scan securite reste assure par Trivy dans le pipeline GitLab CI/CD.
+`docker-compose.infra.yml` contient des reglages GitLab CE plus legers : Puma mono-processus, Sidekiq limite, Prometheus interne GitLab desactive, PostgreSQL reduit et limite memoire Docker a 4 Go pour GitLab. Cela evite de supprimer tes images/volumes tout en reduisant la pression memoire.
+
+Pour appliquer ces reglages :
+
+```powershell
+docker compose -f docker-compose.infra.yml up -d
+docker restart gitlab
+```
+
+Si Docker Desktop reste instable, arreter temporairement les services non utiles pendant le pipeline aide beaucoup :
+
+```powershell
+docker stop grafana prometheus projet11_streamlit projet11_fastapi
+```
+
+Puis relancer l'application apres le pipeline :
+
+```powershell
+docker compose up -d
+```
 
 ## Auteur
 

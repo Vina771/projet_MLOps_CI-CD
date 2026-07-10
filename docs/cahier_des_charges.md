@@ -8,14 +8,14 @@ Mettre en place une chaine CI/CD locale pour deployer automatiquement une applic
 
 - Depot principal : GitLab CE local.
 - CI/CD : GitLab CI/CD avec GitLab Runner.
-- Registry container : GitHub Container Registry (GHCR).
+- Registry container : Harbor local/offline.
 - Deploiement : Ansible lance depuis le pipeline.
 - Monitoring : Prometheus et Grafana.
 - Securite : scan Trivy dans un stage CI/CD dedie.
 
 ## Hors perimetre
 
-- Pas de registry auto-heberge a maintenir localement.
+- Pas de registry cloud obligatoire pour le pipeline local.
 - Pas de base de donnees applicative.
 - Pas de traitement batch lourd dans le pipeline.
 - Les fichiers `.pkl` et `.csv` lourds ne sont pas versionnes.
@@ -23,7 +23,7 @@ Mettre en place une chaine CI/CD locale pour deployer automatiquement une applic
 ## Resultats attendus
 
 - Pipeline 6 stages fonctionnel, avec cleanup final pour le runner Docker.
-- Image poussee dans GHCR.
+- Images Streamlit et FastAPI poussees dans Harbor.
 - Rapport Trivy visible dans les logs du pipeline.
 - Application Streamlit disponible sur `http://localhost:8501`.
 - API FastAPI disponible sur `http://localhost:8000`.

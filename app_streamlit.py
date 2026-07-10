@@ -471,7 +471,7 @@ with st.sidebar:
         st.error("Modele non charge")
         st.caption("Placez best_model.pkl et tfidf_vectorizer.pkl dans models/")
     st.markdown("---")
-    st.caption("Projet NLP - CI/CD Docker GitLab GHCR")
+    st.caption("Projet NLP - CI/CD Docker GitLab Harbor")
     st.caption("LinearSVC | F1 = 0.8902")
 
 
@@ -1259,7 +1259,7 @@ Tweets bruts (3 datasets Kaggle)
     -> API FastAPI (/predict, /predict/batch, /health)
     -> Dashboard Streamlit (analyse en temps reel)
     -> Docker (docker/Dockerfile + Dockerfile.streamlit)
-    -> GHCR + GitHub
+    -> Harbor local + GitHub
     """,
         language="text",
     )

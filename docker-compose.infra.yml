@@ -15,7 +15,18 @@ services:
         external_url 'http://localhost:8929'
         gitlab_rails['gitlab_shell_ssh_port'] = 8922
         gitlab_rails['time_zone'] = 'Indian/Antananarivo'
+        gitlab_rails['usage_ping_enabled'] = false
+        gitlab_rails['gitlab_default_projects_features_container_registry'] = false
+        puma['worker_processes'] = 0
+        puma['threads_min'] = 1
+        puma['threads_max'] = 2
+        sidekiq['concurrency'] = 5
+        prometheus_monitoring['enable'] = false
+        postgresql['shared_buffers'] = '128MB'
+        postgresql['max_worker_processes'] = 4
+        nginx['worker_processes'] = 1
     shm_size: '256m'
+    mem_limit: 4g
     restart: unless-stopped
     networks:
       - mlops_network

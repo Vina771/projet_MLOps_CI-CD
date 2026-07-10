@@ -166,10 +166,10 @@ class TestFichiersProjet:
         for stage in ["lint", "test", "build", "scan", "push", "deploy"]:
             assert f"- {stage}" in content
         assert "REGISTRY" in content
-        assert "ghcr.io" in content
+        assert "host.docker.internal:8080" in content
         assert "IMAGE_NAME" in content
         assert "FASTAPI_IMAGE_NAME" in content
-        assert "GHCR_TOKEN" in content
+        assert "REGISTRY_PASSWORD" in content
         assert "docker/Dockerfile" in content
         assert "$FASTAPI_IMAGE_NAME:$IMAGE_TAG" in content
 

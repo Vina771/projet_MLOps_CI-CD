@@ -11,10 +11,14 @@ variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
   DOCKER_TLS_CERTDIR: ""
   PYTHONPATH: "$CI_PROJECT_DIR"
-  REGISTRY: "ghcr.io"
-  IMAGE_NAME: "ghcr.io/vina771/projet11-mlops"
-  FASTAPI_IMAGE_NAME: "ghcr.io/vina771/projet11-fastapi"
+  REGISTRY: "host.docker.internal:8080"
+  IMAGE_NAME: "host.docker.internal:8080/projet-mlops/projet11-mlops"
+  FASTAPI_IMAGE_NAME: "host.docker.internal:8080/projet-mlops/projet11-fastapi"
   IMAGE_TAG: "$CI_PIPELINE_ID"
+  PYTHON_CI_IMAGE: "host.docker.internal:8080/projet-mlops/python:3.11-slim"
+  DOCKER_CI_IMAGE: "host.docker.internal:8080/projet-mlops/docker:27-cli"
+  TRIVY_CI_IMAGE: "host.docker.internal:8080/projet-mlops/trivy:latest"
+  ANSIBLE_CI_IMAGE: "host.docker.internal:8080/projet-mlops/ansible:latest"
 
 cache:
   paths:
@@ -22,7 +26,7 @@ cache:
 
 lint:
   stage: lint
-  image: python:3.11-slim
+  image: "$PYTHON_CI_IMAGE"
   script:
     - python -m pip install --upgrade pip
     - pip install flake8 black
@@ -32,7 +36,7 @@ lint:
 test:
   stage: test
   timeout: 23m
-  image: python:3.11-slim
+  image: "$PYTHON_CI_IMAGE"
   variables:
     OMP_NUM_THREADS: "1"
     OPENBLAS_NUM_THREADS: "1"
@@ -57,7 +61,7 @@ test:
 
 build:
   stage: build
-  image: docker:27-cli
+  image: "$DOCKER_CI_IMAGE"
   script:
     - docker build -f Dockerfile.streamlit -t "$IMAGE_NAME:$IMAGE_TAG" -t "$IMAGE_NAME:latest" .
     - docker build -f docker/Dockerfile -t "$FASTAPI_IMAGE_NAME:$IMAGE_TAG" -t "$FASTAPI_IMAGE_NAME:latest" .
@@ -67,7 +71,7 @@ build:
 scan:
   stage: scan
   image:
-    name: aquasec/trivy:latest
+    name: "$TRIVY_CI_IMAGE"
     entrypoint: [""]
   variables:
     TRIVY_CACHE_DIR: "$CI_PROJECT_DIR/.trivycache"
@@ -83,7 +87,7 @@ scan:
 
 push:
   stage: push
-  image: docker:27-cli
+  image: "$DOCKER_CI_IMAGE"
   variables:
     DOCKER_CLIENT_TIMEOUT: "180"
     COMPOSE_HTTP_TIMEOUT: "180"
@@ -103,13 +107,13 @@ push:
           sleep 20
         done
       }
-      docker_login_ghcr() {
-        printf '%s' "$GHCR_TOKEN" | docker login "$REGISTRY" -u "$GHCR_USER" --password-stdin
+      docker_login_registry() {
+        printf '%s' "$REGISTRY_PASSWORD" | docker login "$REGISTRY" -u "$REGISTRY_USER" --password-stdin
       }
   script:
-    - test -n "$GHCR_USER"
-    - test -n "$GHCR_TOKEN"
-    - retry 4 docker_login_ghcr
+    - test -n "$REGISTRY_USER"
+    - test -n "$REGISTRY_PASSWORD"
+    - retry 4 docker_login_registry
     - retry 4 docker push "$IMAGE_NAME:$IMAGE_TAG"
     - retry 4 docker push "$IMAGE_NAME:latest"
     - retry 4 docker push "$FASTAPI_IMAGE_NAME:$IMAGE_TAG"
@@ -121,7 +125,7 @@ push:
 
 deploy:
   stage: deploy
-  image: cytopia/ansible:latest
+  image: "$ANSIBLE_CI_IMAGE"
   variables:
     IMAGE_NAME: "$IMAGE_NAME"
     IMAGE_TAG: "$IMAGE_TAG"
@@ -135,7 +139,7 @@ deploy:
 
 cleanup:
   stage: cleanup
-  image: docker:27-cli
+  image: "$DOCKER_CI_IMAGE"
   script:
     - docker image rm "$IMAGE_NAME:$IMAGE_TAG" "$FASTAPI_IMAGE_NAME:$IMAGE_TAG" || true
     - docker builder prune -f --filter "until=24h" || true
