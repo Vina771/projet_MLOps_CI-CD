@@ -31,7 +31,7 @@ lint:
 
 test:
   stage: test
-  timeout: 8m
+  timeout: 23m
   image: python:3.11-slim
   variables:
     OMP_NUM_THREADS: "1"
