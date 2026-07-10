@@ -31,7 +31,14 @@ lint:
 
 test:
   stage: test
+  timeout: 8m
   image: python:3.11-slim
+  variables:
+    OMP_NUM_THREADS: "1"
+    OPENBLAS_NUM_THREADS: "1"
+    MKL_NUM_THREADS: "1"
+    NUMEXPR_NUM_THREADS: "1"
+    JOBLIB_MULTIPROCESSING: "0"
   script:
     - python -m pip install --upgrade pip
     - pip install -r requirements.txt pytest pytest-cov httpx
@@ -77,38 +84,13 @@ scan:
 push:
   stage: push
   image: docker:27-cli
-  variables:
-    DOCKER_CLIENT_TIMEOUT: "180"
-    COMPOSE_HTTP_TIMEOUT: "180"
-  before_script:
-    - |
-      retry() {
-        attempts="$1"
-        shift
-        count=1
-        until "$@"; do
-          status="$?"
-          if [ "$count" -ge "$attempts" ]; then
-            return "$status"
-          fi
-          echo "Commande echouee, nouvelle tentative $count/$attempts dans 20 secondes..."
-          count=$((count + 1))
-          sleep 20
-        done
-      }
-      docker_login_ghcr() {
-        printf '%s' "$GHCR_TOKEN" | docker login "$REGISTRY" -u "$GHCR_USER" --password-stdin
-      }
   script:
-    - test -n "$GHCR_USER"
-    - test -n "$GHCR_TOKEN"
-    - retry 4 docker_login_ghcr
-    - retry 4 docker push "$IMAGE_NAME:$IMAGE_TAG"
-    - retry 4 docker push "$IMAGE_NAME:latest"
-    - retry 4 docker push "$FASTAPI_IMAGE_NAME:$IMAGE_TAG"
-    - retry 4 docker push "$FASTAPI_IMAGE_NAME:latest"
-  after_script:
-    - docker logout "$REGISTRY" || true
+    - echo "$GHCR_TOKEN" | docker login "$REGISTRY" -u "$GHCR_USER" --password-stdin
+    - docker push "$IMAGE_NAME:$IMAGE_TAG"
+    - docker push "$IMAGE_NAME:latest"
+    - docker push "$FASTAPI_IMAGE_NAME:$IMAGE_TAG"
+    - docker push "$FASTAPI_IMAGE_NAME:latest"
+    - docker logout "$REGISTRY"
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
 
@@ -128,11 +110,47 @@ deploy:
 
 cleanup:
   stage: cleanup
-  image: docker:27-cli
+  image: alpine:3.20
+  variables:
+    KEEP_VERSIONS: "5"
+  before_script:
+    - apk add --no-cache curl jq
   script:
-    - docker image rm "$IMAGE_NAME:$IMAGE_TAG" "$FASTAPI_IMAGE_NAME:$IMAGE_TAG" || true
-    - docker builder prune -f --filter "until=24h" || true
-    - docker image prune -f || true
+    - |
+      cleanup_package() {
+        PACKAGE_NAME="$1"
+        echo "== Nettoyage GHCR pour $PACKAGE_NAME =="
+        VERSIONS=$(curl -s -H "Authorization: Bearer $GHCR_TOKEN" \
+          -H "Accept: application/vnd.github+json" \
+          "https://api.github.com/user/packages/container/$PACKAGE_NAME/versions?per_page=100")
+
+        if ! echo "$VERSIONS" | jq -e 'type == "array"' > /dev/null 2>&1; then
+          echo "Reponse inattendue de l'API GitHub, verifie le scope delete:packages du token :"
+          echo "$VERSIONS"
+          return 0
+        fi
+
+        TO_DELETE=$(echo "$VERSIONS" | jq -r '
+          map(select((.metadata.container.tags // []) | index("latest") | not))
+          | sort_by(.created_at) | reverse
+          | .[5:] | .[].id
+        ')
+
+        if [ -z "$TO_DELETE" ]; then
+          echo "Rien a supprimer pour $PACKAGE_NAME"
+          return 0
+        fi
+
+        for VERSION_ID in $TO_DELETE; do
+          echo "Suppression version id=$VERSION_ID de $PACKAGE_NAME"
+          curl -s -X DELETE \
+            -H "Authorization: Bearer $GHCR_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/user/packages/container/$PACKAGE_NAME/versions/$VERSION_ID"
+        done
+      }
+    - cleanup_package "projet11-mlops"
+    - cleanup_package "projet11-fastapi"
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
-      when: always
+  allow_failure: true
