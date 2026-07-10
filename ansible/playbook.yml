@@ -15,9 +15,11 @@
 
   tasks:
     - name: Login GHCR
-      command: docker login {{ registry }} -u {{ ghcr_user }} -p {{ ghcr_token }}
+      shell: echo "{{ ghcr_token }}" | docker login {{ registry }} -u {{ ghcr_user }} --password-stdin
       no_log: true
       when: ghcr_token | length > 0
+      register: login_result
+      failed_when: login_result.rc != 0
 
     - name: Pull image depuis GHCR
       command: docker pull {{ image_name }}:{{ image_tag }}
